@@ -13,7 +13,7 @@ from util import dataloader
 if __name__ == '__main__':
     # Parse args
     parser = argparse.ArgumentParser()
-    parser.add_argument('config', type=str, help="Config file from which model and dataset is read")
+    parser.add_argument('config', type=str, help="Path to config file from which model and dataset is read")
     args = parser.parse_args()
     conf_path = Path(args.config)
     # This works too
