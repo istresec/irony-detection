@@ -7,7 +7,13 @@ from util import dataloader
 import pandas as pd
 
 
-def lower(raw):
+def lower(raw: str) -> str:
+    """
+    Returns a lowercase copy of the input text.
+
+    :param raw: Text which will be turned to lowercase. String.
+    :return: A lowercase copy of the input text. String.
+    """
     return raw.lower()
 
 
@@ -19,7 +25,7 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     :param dataset: Dataset to be preprocessed and tokenized, containing text and labels. Pandas DataFrame.
     :param text_name: The name of the text column in the dataset Pandas DataFrame, 'text' by default. String.
     :param label_name: The name of the label column in the dataset Pandas DataFrame, 'label by default. String.
-    :param remove_punct:
+    :param remove_punct: Determines if punctuation is removed or not. Boolean.
     :return: A finalized Podium dataset, preprocessed and tokenized.
     """
     cleanup = TextCleanUp(remove_punct=remove_punct)
@@ -46,9 +52,10 @@ def tf_idf_vectorization(dataset: Dataset, x):
     :param x: Batch of input data from the dataset. Named Tuple.
     :return: TF-IDF vectorization of given batch x.
     """
-    tfidf_vectorizer = TfIdfVectorizer()
-    tfidf_vectorizer.fit(dataset, field=dataset.field("input_text"))
-    return tfidf_vectorizer.transform(x)
+    tf_idf_vectorizer = TfIdfVectorizer()
+    tf_idf_vectorizer.fit(dataset, field=dataset.field("input_text"))
+
+    return tf_idf_vectorizer.transform(x)
 
 
 # test
