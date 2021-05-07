@@ -17,7 +17,7 @@ backbone = LinearSVC(
 )
 
 test_task = 'A'
-test_type = 'train'
+test_type = 'test'
 test_emojis = True
 test_irony_hashtags = False
 
