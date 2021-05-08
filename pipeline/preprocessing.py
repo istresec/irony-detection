@@ -3,6 +3,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from podium.vectorizers import TfIdfVectorizer
 from nltk.tokenize import TweetTokenizer
 from podium.preproc import TextCleanUp
+
+from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
 
 import pandas as pd
@@ -56,7 +58,7 @@ def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_pun
     :return: TF-IDF vectorization of given dataset and constructed vocabulary
     """
     tf_idf_vectorizer = TfidfVectorizer(max_features=max_features, lowercase=True,
-                                        preprocessor=TextCleanUp(remove_punct=remove_punct),
+                                        preprocessor=IronyDetectionPreprocessor(remove_punct=remove_punct),
                                         tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True,
                                                                  strip_handles=True).tokenize, vocabulary=vocabulary)
 
