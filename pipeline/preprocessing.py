@@ -45,13 +45,15 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     return dataset
 
 
-def tf_idf_vectorization(dataset: Dataset, max_features=15000, remove_punct=True, vocabulary=None):
+def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_punct: bool = True, vocabulary=None):
     """
     Vectorizes each instance in the dataset and returns the TF-IDF vectorization.
 
     :param dataset: Dataset to be vectorized, containing input_text and labels. Podium.Dataset.
-    :param x: Batch of input data from the dataset. Named Tuple.
-    :return: TF-IDF vectorization of given batch x.
+    :param max_features: max number of features in the vocabulary. Integer.
+    :param remove_punct: flag for removing or keeping the punctuations. Boolean.
+    :param vocabulary: vocabulary.
+    :return: TF-IDF vectorization of given dataset and constructed vocabulary
     """
     tf_idf_vectorizer = TfidfVectorizer(max_features=max_features, lowercase=True,
                                         preprocessor=TextCleanUp(remove_punct=remove_punct),
@@ -62,6 +64,7 @@ def tf_idf_vectorization(dataset: Dataset, max_features=15000, remove_punct=True
     vocab = tf_idf_vectorizer.vocabulary_
 
     """
+    # Podium code for TfIdf vectorization
     tf_idf = TfIdfVectorizer()
     tf_idf.fit(dataset, field=dataset.field("input_text"))
     return tf_idf.transform(x)
