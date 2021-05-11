@@ -1,7 +1,10 @@
 from podium import TabularDataset, Dataset, Field, Vocab, LabelField, Iterator
+from sklearn.feature_extraction.text import TfidfVectorizer
 from podium.vectorizers import TfIdfVectorizer
 from nltk.tokenize import TweetTokenizer
 from podium.preproc import TextCleanUp
+
+from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
 
 import pandas as pd
@@ -44,18 +47,31 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     return dataset
 
 
-def tf_idf_vectorization(dataset: Dataset, x):
+def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_punct: bool = True, vocabulary=None):
     """
     Vectorizes each instance in the dataset and returns the TF-IDF vectorization.
 
     :param dataset: Dataset to be vectorized, containing input_text and labels. Podium.Dataset.
-    :param x: Batch of input data from the dataset. Named Tuple.
-    :return: TF-IDF vectorization of given batch x.
+    :param max_features: max number of features in the vocabulary. Integer.
+    :param remove_punct: flag for removing or keeping the punctuations. Boolean.
+    :param vocabulary: vocabulary.
+    :return: TF-IDF vectorization of given dataset and constructed vocabulary
     """
-    tf_idf_vectorizer = TfIdfVectorizer()
-    tf_idf_vectorizer.fit(dataset, field=dataset.field("input_text"))
+    tf_idf_vectorizer = TfidfVectorizer(max_features=max_features, lowercase=True,
+                                        preprocessor=IronyDetectionPreprocessor(remove_punct=remove_punct),
+                                        tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True,
+                                                                 strip_handles=True).tokenize, vocabulary=vocabulary)
 
-    return tf_idf_vectorizer.transform(x)
+    x = tf_idf_vectorizer.fit_transform(dataset)
+    vocab = tf_idf_vectorizer.vocabulary_
+
+    """
+    # Podium code for TfIdf vectorization
+    tf_idf = TfIdfVectorizer()
+    tf_idf.fit(dataset, field=dataset.field("input_text"))
+    return tf_idf.transform(x)
+    """
+    return x, vocab
 
 
 # test
@@ -64,14 +80,22 @@ if __name__ == '__main__':
     test_type = 'train'
 
     train_data = dataloader.load_train_data(test_task)
-    train_dataset = preprocess_and_tokenize(train_data, remove_punct=True)
-    x, y = train_dataset.batch(add_padding=True)
-    tfidf_batch = tf_idf_vectorization(train_dataset, x)
+    test_data = dataloader.load_test_data(test_task)
+    # train_dataset = preprocess_and_tokenize(train_data, vocab, remove_punct=True)
+    # print(vocab)
+    # test_dataset = preprocess_and_tokenize(test_data, vocab, remove_punct=True)
+    # x, y = train_dataset.batch(add_padding=True)
+    # x_t, y_t = test_dataset.batch(add_padding=True)
+    tfidf_batch, vocab = tf_idf_vectorization(train_data["text"])
+    print(vocab.shape)
+    tfidf_batch_t, _ = tf_idf_vectorization(test_data["text"], vocabulary=vocab)
 
-    print(f"Shapes | x: {x.shape}, y: {y.shape}")
-    print(f"First example of input data:\n{train_dataset[0]}")  # input text and label
-    print(f"Batch of first example of input data:\n{x[0]}")  # dictionary indices
+    # print(f"Shapes | x: {x.shape}, y: {y.shape}")
+    # print(f"First example of input data:\n{train_dataset[0]}")  # input text and label
+    # print(f"Batch of first example of input data:\n{x[0]}")  # dictionary indices
+    print(f"Shapes of TF-IDF batches: train = {tfidf_batch.shape}, test = {tfidf_batch_t.shape}")
     print(f"TF-IDF vectorization of first batch example:\n{tfidf_batch[0]}")  # vector representation
+    print(f"TF-IDF vectorization of first batch example:\n{tfidf_batch_t[0]}")  # vector representation
 
     """
     # play with batch iteration
