@@ -1,6 +1,5 @@
 from podium import TabularDataset, Dataset, Field, Vocab, LabelField, Iterator
 from sklearn.feature_extraction.text import TfidfVectorizer
-from podium.vectorizers import TfIdfVectorizer
 from nltk.tokenize import TweetTokenizer
 from podium.preproc import TextCleanUp
 
@@ -8,6 +7,7 @@ from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
 
 import pandas as pd
+import numpy as np
 
 
 def lower(raw: str) -> str:
@@ -21,6 +21,7 @@ def lower(raw: str) -> str:
 
 
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
+                            finalize: bool = True,
                             remove_punct: bool = True) -> Dataset:
     """
     Preprocesses text data and returns a Podium dataset.
@@ -28,13 +29,16 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     :param dataset: Dataset to be preprocessed and tokenized, containing text and labels. Pandas DataFrame.
     :param text_name: The name of the text column in the dataset Pandas DataFrame, 'text' by default. String.
     :param label_name: The name of the label column in the dataset Pandas DataFrame, 'label by default. String.
+    :param finalize: Determines if dataset is returned finalized or not, True by default.
     :param remove_punct: Determines if punctuation is removed or not. Boolean.
-    :return: A finalized Podium dataset, preprocessed and tokenized.
+    :return: A Podium Dataset, preprocessed and tokenized, and a Podium Vocab.
     """
-    cleanup = TextCleanUp(remove_punct=remove_punct)
+    vocab = Vocab()
+
+    cleanup = IronyDetectionPreprocessor(remove_punct=remove_punct)
     text = Field(name='input_text',
                  tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True, strip_handles=True).tokenize,
-                 numericalizer=Vocab(),
+                 numericalizer=vocab,
                  keep_raw=False,
                  pretokenize_hooks=[lower, cleanup],
                  posttokenize_hooks=[])
@@ -42,9 +46,11 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     fields = {text_name: text, label_name: label}
 
     dataset = TabularDataset.from_pandas(df=dataset, fields=fields)
-    dataset.finalize_fields()
 
-    return dataset
+    if finalize:
+        dataset.finalize_fields()
+
+    return dataset, vocab
 
 
 def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_punct: bool = True, vocabulary=None):
@@ -81,27 +87,33 @@ if __name__ == '__main__':
 
     train_data = dataloader.load_train_data(test_task)
     test_data = dataloader.load_test_data(test_task)
-    # train_dataset = preprocess_and_tokenize(train_data, vocab, remove_punct=True)
-    # print(vocab)
-    # test_dataset = preprocess_and_tokenize(test_data, vocab, remove_punct=True)
-    # x, y = train_dataset.batch(add_padding=True)
-    # x_t, y_t = test_dataset.batch(add_padding=True)
+
+    # TF-IDF
     tfidf_batch, vocab = tf_idf_vectorization(train_data["text"])
-    print(vocab.shape)
     tfidf_batch_t, _ = tf_idf_vectorization(test_data["text"], vocabulary=vocab)
 
-    # print(f"Shapes | x: {x.shape}, y: {y.shape}")
-    # print(f"First example of input data:\n{train_dataset[0]}")  # input text and label
-    # print(f"Batch of first example of input data:\n{x[0]}")  # dictionary indices
     print(f"Shapes of TF-IDF batches: train = {tfidf_batch.shape}, test = {tfidf_batch_t.shape}")
     print(f"TF-IDF vectorization of first batch example:\n{tfidf_batch[0]}")  # vector representation
     print(f"TF-IDF vectorization of first batch example:\n{tfidf_batch_t[0]}")  # vector representation
 
-    """
-    # play with batch iteration
-    dataset_iter = Iterator(train_dataset, batch_size=32)
-    print('Iterating through dataset minibatches:')
-    for batch_num, batch in enumerate(dataset_iter):
-        if batch_num % 20 == 0:
-            print(f'\tBatch {batch_num}: {hash(str(batch))} (hashed string of the batch)')
-    """
+    # podium word embedding preprocessing
+    train_dataset, vocab = preprocess_and_tokenize(train_data, finalize=False, remove_punct=True)
+    test_dataset, _ = preprocess_and_tokenize(test_data, finalize=False, remove_punct=True)
+
+    train_dataset.finalize_fields(train_dataset, test_dataset)
+    test_dataset.finalize_fields()
+
+    x, y = train_dataset.batch(add_padding=True)
+    x_t_p, y_t = test_dataset.batch(add_padding=True)
+
+    x_t = np.ones((x_t_p.shape[0], x.shape[1]), dtype=np.integer)
+    x_t[:, :x_t_p.shape[1]] = x_t_p
+
+    print(f"Shapes | x: {x.shape}, y: {y.shape}")
+    print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")
+
+    print(f"First example of train data:\n{train_dataset[0]}")  # input text and label
+    print(f"Batch of first example of input data:\n{x[0]}")  # dictionary indices
+
+    print(f"First example of test data:\n{test_dataset[0]}")  # input text and label
+    print(f"Batch of first example of test data:\n{x_t[0]}")  # dictionary indices
