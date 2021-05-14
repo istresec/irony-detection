@@ -28,15 +28,11 @@ if __name__ == '__main__':
     # Get data
     train_data = dataloader.load_train_data(conf.test_task, emojis=conf.test_emojis,
                                             irony_hashtags=conf.test_irony_hashtags)
-    # train_dataset = preprocess_and_tokenize(train_data, remove_punct=conf.remove_punctuation)
-    # x, y = train_dataset.batch(add_padding=True)
     y = train_data["label"]
     tfidf_batch, vocab = tf_idf_vectorization(train_data["text"])
 
     # Get data
     test_data = dataloader.load_test_data(conf.test_task, emojis=conf.test_emojis)
-    # test_dataset = preprocess_and_tokenize(test_data, remove_punct=conf.remove_punctuation)
-    # x_test, y_test = test_dataset.batch(add_padding=True)
     y_test = test_data["label"]
     tfidf_batch_test, _ = tf_idf_vectorization(test_data["text"], vocabulary=vocab)
 
