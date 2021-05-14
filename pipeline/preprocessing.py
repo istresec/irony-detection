@@ -1,7 +1,7 @@
 from podium import TabularDataset, Dataset, Field, Vocab, LabelField, Iterator
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import TweetTokenizer
-from podium.preproc import TextCleanUp
+from podium.vocab import PAD
 
 from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
@@ -21,19 +21,24 @@ def lower(raw: str) -> str:
 
 
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
-                            finalize: bool = True,
-                            remove_punct: bool = True) -> Dataset:
+                            finalize: bool = True, use_vocab=True, vocab_size=10000,
+                            remove_punct: bool = True):
     """
     Preprocesses text data and returns a Podium dataset.
 
     :param dataset: Dataset to be preprocessed and tokenized, containing text and labels. Pandas DataFrame.
     :param text_name: The name of the text column in the dataset Pandas DataFrame, 'text' by default. String.
     :param label_name: The name of the label column in the dataset Pandas DataFrame, 'label by default. String.
-    :param finalize: Determines if dataset is returned finalized or not, True by default.
+    :param finalize: Determines if dataset is returned finalized or not, True by default. Boolean
+    :param use_vocab: Determines if a vocabulary is used or not, True by default. Boolean
+    :param vocab_size: Determines the max size of the vocabulary, if it is used, 10000 by default. Integer.
     :param remove_punct: Determines if punctuation is removed or not. Boolean.
-    :return: A Podium Dataset, preprocessed and tokenized, and a Podium Vocab.
+    :return: A Podium Dataset, preprocessed and tokenized, and a Podium Vocab if it is used.
     """
-    vocab = Vocab()
+
+    vocab = None
+    if use_vocab:
+        vocab = Vocab(max_size=vocab_size)
 
     cleanup = IronyDetectionPreprocessor(remove_punct=remove_punct)
     text = Field(name='input_text',
@@ -50,7 +55,10 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     if finalize:
         dataset.finalize_fields()
 
-    return dataset, vocab
+    if use_vocab:
+        return dataset, vocab
+    else:
+        return dataset
 
 
 def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_punct: bool = True, vocabulary=None):
@@ -97,17 +105,21 @@ if __name__ == '__main__':
     print(f"TF-IDF vectorization of first batch example:\n{tfidf_batch_t[0]}")  # vector representation
 
     # podium word embedding preprocessing
-    train_dataset, vocab = preprocess_and_tokenize(train_data, finalize=False, remove_punct=True)
-    test_dataset, _ = preprocess_and_tokenize(test_data, finalize=False, remove_punct=True)
-
-    train_dataset.finalize_fields(train_dataset, test_dataset)
-    test_dataset.finalize_fields()
+    train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=True)
+    test_dataset = preprocess_and_tokenize(test_data, remove_punct=True, use_vocab=False)
 
     x, y = train_dataset.batch(add_padding=True)
-    x_t_p, y_t = test_dataset.batch(add_padding=True)
+    x_t_p, y_t = test_dataset.batch()
 
-    x_t = np.ones((x_t_p.shape[0], x.shape[1]), dtype=np.integer)
-    x_t[:, :x_t_p.shape[1]] = x_t_p
+    # handle padding and numericalization of test set
+    required_length = x.shape[1]
+    padding = [PAD()]
+    for tweet in x_t_p:
+        tweet_len = len(tweet)
+        if tweet_len < required_length:
+            tweet += padding * (required_length - tweet_len)
+    x_t = np.array([vocab.numericalize(tweet) for tweet in x_t_p])
+    y_t = np.array(y_t)
 
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")

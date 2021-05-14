@@ -2,55 +2,25 @@ import argparse
 import importlib
 from pathlib import Path
 
+from podium.vectorizers import GloVe
 from sklearn.metrics import accuracy_score
 
 from benchmark_system.example import parse_dataset, featurize
 from models.basic_model import BasicModel
-from pipeline.preprocessing import preprocess_and_tokenize, tf_idf_vectorization
-from podium.vectorizers import GloVe
-from util import dataloader
-
-import numpy as np
+from util.utils import load_and_preprocess
 
 
-def load_and_preprocess(conf, glove, remove_punct):
-
-    # Load and preprocess data - with punctuation
-    train_data = dataloader.load_train_data(conf.test_task, emojis=conf.test_emojis,
-                                            irony_hashtags=conf.test_irony_hashtags)
-    test_data = dataloader.load_test_data(conf.test_task, emojis=conf.test_emojis)
-    train_dataset, vocab = preprocess_and_tokenize(train_data, finalize=False, remove_punct=remove_punct)
-    test_dataset, _ = preprocess_and_tokenize(test_data, finalize=False, remove_punct=remove_punct)
-    train_dataset.finalize_fields(train_dataset, test_dataset)  # use both datasets to get complete Vocab for GloVe
-    test_dataset.finalize_fields()
-    x, y = train_dataset.batch(add_padding=True)
-    x = x.astype(int)
-    x_test, y_test = test_dataset.batch(add_padding=True)
-
-    # Handle different padding
-    x_test_p = np.ones((x_test.shape[0], x.shape[1]), dtype=np.integer)
-    x_test_p[:, :x_test.shape[1]] = x_test
-    x_test = x_test_p
-
-    # Get embedding formats
+def get_embedding_format(x, vocab, glove):
     embeddings = glove.load_vocab(vocab)
     x = embeddings[x[:]]
-    x_test = embeddings[x_test[:]]
     x = x.reshape((x.shape[0], x.shape[1] * x.shape[2]))
-    x_test = x_test.reshape((x_test.shape[0], x_test.shape[1] * x_test.shape[2]))
 
-    return x, y, x_test, y_test
+    return x
 
 
 # Test SVM with basic model.
 if __name__ == '__main__':
-    # Parse args
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-config', type=str, help="Path to config file from which model and dataset is read")
-    args = parser.parse_args()
-    conf_path = Path(args.config)
-    # This works too
-    # conf_path = Path("..\configs\svm.py")
+    conf_path = Path("..\configs\svm.py")
 
     # Get configs
     spec = importlib.util.spec_from_file_location('module', conf_path)
@@ -66,7 +36,10 @@ if __name__ == '__main__':
     print("\nUsing Podium:")
 
     # Without punctuation
-    x, y, x_test, y_test = load_and_preprocess(conf, glove, True)
+    conf.remove_punctuation = True
+    x, y, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
+    x = get_embedding_format(x, vocab, glove)
+    x_test = get_embedding_format(x_test, vocab, glove)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
@@ -78,7 +51,10 @@ if __name__ == '__main__':
     print(f"Accuracy on the test set (without punctuation): {acc_test:.4f}")
 
     # With punctuation
-    x, y, x_test, y_test = load_and_preprocess(conf, glove, False)
+    conf.remove_punctuation = False
+    x, y, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
+    x = get_embedding_format(x, vocab, glove)
+    x_test = get_embedding_format(x_test, vocab, glove)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
