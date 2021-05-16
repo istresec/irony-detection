@@ -1,4 +1,6 @@
 import pandas as pd
+from torch.utils.data import Dataset
+import torch
 
 encoding = 'UTF-8'
 train_path = '../datasets/train/SemEval2018-T3-train-task'
@@ -62,6 +64,18 @@ def load_test_data(task: str, emojis: bool = True):
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
     return df
+
+
+class PytorchDataset(Dataset):
+    def __init__(self, x, y):
+        self.x = torch.tensor(x, dtype=torch.long)
+        self.y = torch.tensor(y, dtype=torch.long)
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, item):
+        return self.x[item], self.y[item]
 
 
 # test
