@@ -1,11 +1,11 @@
-import importlib
+from util.dataloader import load_train_data, load_test_data
+from pipeline.preprocessing import preprocess_and_tokenize
+from podium.vocab import PAD
 from pathlib import Path
 
 import numpy as np
-from podium.vocab import PAD
-
-from pipeline.preprocessing import preprocess_and_tokenize
-from util.dataloader import load_train_data, load_test_data
+import importlib
+import torch
 
 
 def load_and_preprocess(config, padding=False):
@@ -46,6 +46,28 @@ def load_and_preprocess(config, padding=False):
     y_t = np.array(y_t)
 
     return x, y, x_t, y_t, vocab
+
+
+def update_stats(accuracy, confusion_matrix, logits, y):
+    _, max_ind = torch.max(logits, 1)
+    equal = torch.eq(max_ind, y)
+    correct = int(torch.sum(equal))
+    for j, i in zip(max_ind, y):
+        confusion_matrix[int(i), int(j)] += 1
+    return accuracy + correct, confusion_matrix
+
+
+def logger(path, accuracy, f1, precision, recall):
+    with path.open(mode="a") as f:
+        f.write(f"{accuracy} {f1} {precision} {recall}\n")
+
+
+def calculate_statistics(conf_matrix):
+    tp = np.diag(conf_matrix)[1]
+    precision = tp / (tp + conf_matrix[0, 1])
+    recall = tp / (tp + conf_matrix[1, 0])
+    f1 = 2*precision*recall / (precision + recall)
+    return precision, recall, f1
 
 
 # test

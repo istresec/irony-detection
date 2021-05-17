@@ -12,9 +12,9 @@ class RNNClassifier(nn.Module):
         self.encoder = nn.GRU(
             input_size=embed_dim,
             hidden_size=hidden_dim,
-            num_layers=2,
+            num_layers=5,
             bidirectional=True,
-            dropout=0.3
+            dropout=0.2
         )
         self.decoder = nn.Sequential(
             nn.Linear(2*hidden_dim, hidden_dim),
