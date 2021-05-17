@@ -128,10 +128,10 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.lr, weight_decay=conf.weight_decay)
 
     # Train loop
-    acc = 0
+    acc_v = 0
     for epoch in range(conf.epochs):
         acc, conf_matrix, acc_v, conf_matrix_v = train(model, train_dataloader, valid_dataloader, optimizer,
-                                                       criterion, num_labels=2, best_accuracy=acc)
+                                                       criterion, num_labels=2, best_accuracy=acc_v)
         acc_percentage = acc / len(train_dataloader) / conf.batch_size
         precision, recall, f1 = calculate_statistics(conf_matrix)
         acc_percentage_v = acc_v / len(valid_dataloader) / conf.batch_size
