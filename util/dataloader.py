@@ -1,5 +1,6 @@
 import pandas as pd
 from torch.utils.data import Dataset
+from sklearn.model_selection import train_test_split
 import torch
 
 encoding = 'UTF-8'
@@ -10,7 +11,7 @@ label_header = 'Label'
 test_file_prefix = 'SemEval2018-T3_gold_test_task'
 
 
-def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False):
+def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False, split: bool = False):
     """
     Loads SemEVAL2018 Task 3 training datasets (tweets and labels), depending on specification.
 
@@ -39,7 +40,11 @@ def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False
     df.pop('Tweet index')
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
-    return df
+    if split:
+        df_train, df_valid = train_test_split(df, test_size=0.2)
+        return df_train, df_valid
+    else:
+        return df
 
 
 def load_test_data(task: str, emojis: bool = True):
