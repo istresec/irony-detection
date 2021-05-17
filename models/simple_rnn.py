@@ -6,15 +6,15 @@ import torch
 
 
 class RNNClassifier(nn.Module):
-    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2):
+    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2, num_layers=2, dropout=0.2):
         super(RNNClassifier, self).__init__()
         self.embedding = embedding
         self.encoder = nn.GRU(
             input_size=embed_dim,
             hidden_size=hidden_dim,
-            num_layers=5,
+            num_layers=num_layers,
             bidirectional=True,
-            dropout=0.2
+            dropout=dropout
         )
         self.decoder = nn.Sequential(
             nn.Linear(2*hidden_dim, hidden_dim),
