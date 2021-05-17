@@ -22,7 +22,7 @@ def lower(raw: str) -> str:
 
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
                             finalize: bool = True, use_vocab=True, vocab_size=10000,
-                            remove_punct: bool = True):
+                            remove_punct: bool = True, split: bool = False):
     """
     Preprocesses text data and returns a Podium dataset.
 
@@ -33,6 +33,7 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     :param use_vocab: Determines if a vocabulary is used or not, True by default. Boolean
     :param vocab_size: Determines the max size of the vocabulary, if it is used, 10000 by default. Integer.
     :param remove_punct: Determines if punctuation is removed or not. Boolean.
+    :param split:
     :return: A Podium Dataset, preprocessed and tokenized, and a Podium Vocab if it is used.
     """
 
@@ -55,10 +56,19 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     if finalize:
         dataset.finalize_fields()
 
+    if split:
+        dataset_train, dataset_valid = dataset.split(split_ratio=0.8)
+
     if use_vocab:
-        return dataset, vocab
+        if split:
+            return dataset_train, dataset_valid, vocab
+        else:
+            return dataset, vocab
     else:
-        return dataset
+        if split:
+            return dataset_train, dataset_valid
+        else:
+            return dataset
 
 
 def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_punct: bool = True, vocabulary=None):

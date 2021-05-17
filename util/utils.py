@@ -20,10 +20,13 @@ def load_and_preprocess(config, padding=False):
                                  irony_hashtags=config.test_irony_hashtags)
     test_data = load_test_data(config.test_task, emojis=config.test_emojis)
 
-    train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=config.remove_punctuation)
+    train_dataset, valid_dataset, vocab = preprocess_and_tokenize(train_data,
+                                                                  remove_punct=config.remove_punctuation,
+                                                                  split=True)
     test_dataset = preprocess_and_tokenize(test_data, remove_punct=config.remove_punctuation, use_vocab=False)
 
     x, y = train_dataset.batch(add_padding=padding)
+    x_val, y_val = valid_dataset.batch(add_padding=padding)
     x_t_p, y_t = test_dataset.batch()
 
     if padding:
@@ -38,14 +41,17 @@ def load_and_preprocess(config, padding=False):
         # TODO: dataset.batch method returns a float type numpy array instead of an integer type array
         # TODO: remove if bug found
         x = x.astype(int)
+        x_val = x_val.astype(int)
     else:
         x = np.array(x, dtype=object)
         y = np.array(y)
+        x_val = np.array(x_val, dtype=object)
+        y_val = np.array(y_val)
 
     x_t = np.array([vocab.numericalize(tweet) for tweet in x_t_p], dtype=object if not padding else None)
     y_t = np.array(y_t)
 
-    return x, y, x_t, y_t, vocab
+    return x, y, x_val, y_val, x_t, y_t, vocab
 
 
 def update_stats(accuracy, confusion_matrix, logits, y):
