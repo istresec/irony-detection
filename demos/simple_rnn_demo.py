@@ -1,4 +1,4 @@
-from util.utils import load_and_preprocess, update_stats, logger, calculate_statistics
+from util.utils import load_and_preprocess, update_stats, logger, calculate_statistics, train, test
 from models.simple_rnn import RNNClassifier
 from util.dataloader import PytorchDataset
 from torch.utils.data import DataLoader
@@ -6,70 +6,8 @@ from podium.vectorizers import GloVe
 from pathlib import Path
 
 import torch.nn as nn
-import numpy as np
 import importlib
 import torch
-import tqdm
-
-
-def train(model, data, data_valid, optimizer, criterion, num_labels=2, best_accuracy=0):
-    model.train()
-    loss_t = 0
-    accuracy, confusion_matrix = 0, np.zeros((num_labels, num_labels), dtype=int)
-    for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
-        model.zero_grad()
-        x, y = x.to(device), y.squeeze().to(device)
-        lens = []
-        for i in range(x.shape[0]):
-            lens.append(x[i].shape[0])
-        logits = model(x, sorted(lens))
-        accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
-        loss = criterion(logits, y)
-        loss_t += loss.item()
-        loss.backward()
-        optimizer.step()
-    _, _, f1 = calculate_statistics(confusion_matrix)
-    print("[Train Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%".format(loss_t/len(data),
-                                                                             accuracy/len(data)/conf.batch_size * 100,
-                                                                             f1*100))
-    model.eval()
-    with torch.no_grad():
-        loss_v = 0
-        accuracy_v, confusion_matrix_v = 0, np.zeros((num_labels, num_labels), dtype=int)
-        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data_valid), total=len(data_valid)):
-            x, y = x.to(device), y.squeeze().to(device)
-            lens = []
-            for i in range(x.shape[0]):
-                lens.append(x[i].shape[0])
-            logits = model(x, sorted(lens))
-            accuracy_v, confusion_matrix_v = update_stats(accuracy_v, confusion_matrix_v, logits, y)
-            loss = criterion(logits, y)
-            loss_v += loss.item()
-    _, _, f1 = calculate_statistics(confusion_matrix_v)
-    print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%".format(loss_v/len(data_valid),
-                                                                             accuracy_v/len(data_valid)/conf.batch_size * 100,
-                                                                             f1*100))
-
-    if accuracy_v > best_accuracy:
-        torch.save(model, path / "best_model.pth")
-    return accuracy, confusion_matrix, accuracy_v, confusion_matrix_v
-
-
-def test(model, data, num_labels=2):
-    model.eval()
-    accuracy, confusion_matrix = 0, np.zeros((num_labels, num_labels), dtype=int)
-    with torch.no_grad():
-        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
-            x, y = x.to(device), y.squeeze().to(device)
-            lens = []
-            for i in range(len(x)):
-                lens.append(len(x[i]))
-            logits = model(x, sorted(lens))
-            accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
-    _, _, f1 = calculate_statistics(confusion_matrix)
-    print("[Test Stats]: acc = {:.3f}%, f1 = {:.3f}%".format(accuracy/len(data)/conf.batch_size * 100, f1*100))
-    return accuracy, confusion_matrix
-
 
 if __name__ == '__main__':
     conf_path = Path("..\configs\simple_rnn.py")
@@ -131,7 +69,8 @@ if __name__ == '__main__':
     acc_v = 0
     for epoch in range(conf.epochs):
         acc, conf_matrix, acc_v, conf_matrix_v = train(model, train_dataloader, valid_dataloader, optimizer,
-                                                       criterion, num_labels=2, best_accuracy=acc_v)
+                                                       criterion, device, path, num_labels=2, best_accuracy=acc_v,
+                                                       batch_size=conf.batch_size)
         acc_percentage = acc / len(train_dataloader) / conf.batch_size
         precision, recall, f1 = calculate_statistics(conf_matrix)
         acc_percentage_v = acc_v / len(valid_dataloader) / conf.batch_size
@@ -144,7 +83,7 @@ if __name__ == '__main__':
     # Testing the model
     model = torch.load(path / "best_model.pth")
     model.to(device)
-    acc, conf_matrix = test(model, test_dataloader, num_labels=2)
+    acc, conf_matrix = test(model, test_dataloader, device, num_labels=2, batch_size=conf.batch_size)
     acc_percentage = acc / len(test_dataloader) / conf.batch_size
     precision, recall, f1 = calculate_statistics(conf_matrix)
     logger(log_path_test, acc_percentage, f1, precision, recall)
