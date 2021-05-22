@@ -13,8 +13,8 @@ class CnnRnnClassifier(nn.Module):
 
         self.embedding = embedding
 
-        self.conv1 = nn.Conv2d(in_channels=embedding_dim, out_channels=conv1_filters, kernel_size=(3, 3))
-        self.conv2 = nn.Conv2d(in_channels=conv1_filters, out_channels=conv2_filters, kernel_size=(3, 3))
+        self.conv1 = nn.Conv1d(in_channels=embedding_dim, out_channels=conv1_filters, kernel_size=3)
+        self.conv2 = nn.Conv1d(in_channels=conv1_filters, out_channels=conv2_filters, kernel_size=3)
         self.dropout = nn.Dropout(p=dropout_rate)
 
         self.lstm = nn.LSTM(input_size=conv2_filters, hidden_size=lstm_hidden_size, num_layers=2, bidirectional=True)

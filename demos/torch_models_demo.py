@@ -17,7 +17,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
 
     # Define configuration path
-    conf_path = Path("..\configs\simple_rnn.py")
+    conf_path = Path("..\configs\cnn_dnn.py")
 
     # Get configuaration
     spec = importlib.util.spec_from_file_location('module', conf_path)
@@ -41,10 +41,11 @@ if __name__ == '__main__':
     glove = GloVe(dim=conf.glove_dim)
 
     # Without punctuation
-    conf.remove_punctuation = False
+    conf.remove_punctuation = True
 
     # Loading data
     x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
+    max_length = x.shape[1]
     train_dataset = PytorchDataset(x, y)
     valid_dataset = PytorchDataset(x_val, y_val)
     test_dataset = PytorchDataset(x_test, y_test)
@@ -64,7 +65,7 @@ if __name__ == '__main__':
     # Copy the pretrained GloVe word embeddings
     embedding_matrix.weight.data.copy_(torch.from_numpy(embeddings))
 
-    model = conf.model_constructor(embedding_matrix)
+    model = conf.model_constructor(embedding_matrix, max_length)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.lr, weight_decay=conf.weight_decay)
