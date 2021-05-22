@@ -16,7 +16,7 @@ def load_and_preprocess(config, padding=False):
     Loads and preprocesses the train and test dataset based on given configuration.
 
     :param config: Configuration containing all necessary function arguments.
-    :param padding: Determines if data is paddeed or not, False by default. Boolean.
+    :param padding: Determines if data is padded or not, False by default. Boolean.
     :return: The training data and labels x and y, the test data and labels x_test and y_test, and the vocab.
     """
     train_data, valid_data = load_train_data(config.test_task, emojis=config.test_emojis,
@@ -27,9 +27,13 @@ def load_and_preprocess(config, padding=False):
     test_dataset = preprocess_and_tokenize(test_data, remove_punct=config.remove_punctuation, use_vocab=False)
     valid_dataset = preprocess_and_tokenize(valid_data, remove_punct=config.remove_punctuation, use_vocab=False)
 
-    x, y = train_dataset.batch(add_padding=padding)
-    x_v, y_v = valid_dataset.batch()
-    x_t_p, y_t = test_dataset.batch()
+    # Data now could contain additional punctuation fields
+    data = train_dataset.batch(add_padding=padding)
+    x, y = data.pop('input_text'), data.pop('target')
+    data_v = valid_dataset.batch()
+    x_v, y_v = data_v.pop('input_text'), data_v.pop('target')
+    data_t = test_dataset.batch()
+    x_t_p, y_t = data_t.pop('input_text'), data_t.pop('target')
 
     if padding:
         required_length = x.shape[1]
@@ -56,7 +60,10 @@ def load_and_preprocess(config, padding=False):
     x_val = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else None)
     y_val = np.array(y_v)
 
-    return x, y, x_val, y_val, x_t, y_t, vocab
+    ret_data = (x, y, x_val, y_val, x_t, y_t, vocab) if config.remove_punctuation \
+        else (x, y, x_val, y_val, x_t, y_t, vocab, data, data_v, data_t)
+
+    return ret_data
 
 
 def update_stats(accuracy, confusion_matrix, logits, y):
@@ -162,11 +169,11 @@ if __name__ == '__main__':
     spec.loader.exec_module(conf)
 
     print('Without padding:')
-    x, y, x_t, y_t, _ = load_and_preprocess(conf, padding=False)
+    x, y, x_t, y_t, x_v, y_v, _ = load_and_preprocess(conf, padding=False)
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")
 
     print('With padding:')
-    x, y, x_t, y_t, _ = load_and_preprocess(conf, padding=True)
+    x, y, x_t, y_t, x_v, y_v, _ = load_and_preprocess(conf, padding=True)
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")
