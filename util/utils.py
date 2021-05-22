@@ -1,3 +1,5 @@
+import sys
+
 from util.dataloader import load_train_data, load_test_data
 from pipeline.preprocessing import preprocess_and_tokenize
 from podium.vocab import PAD
@@ -75,56 +77,60 @@ def calculate_statistics(conf_matrix):
     tp = np.diag(conf_matrix)[1]
     precision = tp / (tp + conf_matrix[0, 1])
     recall = tp / (tp + conf_matrix[1, 0])
-    f1 = 2*precision*recall / (precision + recall)
+    f1 = 2 * precision * recall / (precision + recall)
     return precision, recall, f1
 
 
-def train(model, data, data_valid, optimizer, criterion, device, path, num_labels=2, best_accuracy=0, batch_size=32):
-    model.train()
-    loss_t = 0
-    accuracy, confusion_matrix = 0, np.zeros((num_labels, num_labels), dtype=int)
-    for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
-        model.zero_grad()
-        x, y = x.to(device), y.squeeze().to(device)
-        lens = []
-        for i in range(x.shape[0]):
-            lens.append(x[i].shape[0])
-        logits = model(x, sorted(lens))
-        accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
-        loss = criterion(logits, y)
-        loss_t += loss.item()
-        loss.backward()
-        optimizer.step()
-    _, _, f1 = calculate_statistics(confusion_matrix)
-    print("[Train Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%".format(loss_t/len(data),
-                                                                             accuracy/len(data)/batch_size * 100,
-                                                                             f1*100))
-    model.eval()
-    with torch.no_grad():
-        loss_v = 0
-        accuracy_v, confusion_matrix_v = 0, np.zeros((num_labels, num_labels), dtype=int)
-        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data_valid), total=len(data_valid)):
+def train(model, data, data_valid, optimizer, criterion, device, path, num_labels=2, epochs=100,
+          batch_size=32, early_stopping=True, early_stop_tolerance=5, max_norm=0.25):
+    log_path_train = path / "logs_train.txt"
+    log_path_valid = path / "logs_valid.txt"
+
+    early_stop_ctr, best_f1 = 0, 0
+    for epoch in range(1, epochs + 1):
+        # Train step
+        model.train()
+        loss_t, accuracy_t, conf_mat_t = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
+        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
+            model.zero_grad()
             x, y = x.to(device), y.squeeze().to(device)
             lens = []
             for i in range(x.shape[0]):
                 lens.append(x[i].shape[0])
             logits = model(x, sorted(lens))
-            accuracy_v, confusion_matrix_v = update_stats(accuracy_v, confusion_matrix_v, logits, y)
+            accuracy_t, conf_mat_t = update_stats(accuracy_t, conf_mat_t, logits, y)
             loss = criterion(logits, y)
-            loss_v += loss.item()
-    _, _, f1 = calculate_statistics(confusion_matrix_v)
-    print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%".format(loss_v/len(data_valid),
-                                                                             accuracy_v/len(data_valid)/batch_size * 100,
-                                                                             f1*100))
+            loss_t += loss.item()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
+            optimizer.step()
+        prec_t, recall_t, f1_t = calculate_statistics(conf_mat_t)
+        print("[Train Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
+              .format(loss_t / len(data), accuracy_t / len(data) / batch_size * 100, f1_t * 100))
+        logger(log_path_train, accuracy_t, f1_t, prec_t, recall_t)
 
-    if accuracy_v > best_accuracy:
-        torch.save(model, path / "best_model.pth")
-    return accuracy, confusion_matrix, accuracy_v, confusion_matrix_v
+        # Evaluate validation
+        loss_v, acc_v, conf_mat_v = evaluate(model, data_valid, device, criterion, num_labels=num_labels)
+        prec_v, recall_v, f1_v = calculate_statistics(conf_mat_v)
+        print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
+              .format(loss_v / len(data_valid), acc_v / len(data_valid) / batch_size * 100, f1_v * 100))
+        logger(log_path_valid, acc_v, f1_v, prec_v, recall_v)
+
+        # Early stopping and best model saving
+        if f1_v > best_f1:
+            best_f1 = f1_v
+            torch.save(model, path / "best_model.pth")
+            early_stop_ctr = 0
+        else:
+            early_stop_ctr += 1
+            if early_stopping and (early_stop_ctr > early_stop_tolerance):
+                print(f"Early stopping at epoch {epoch} -- model did not improve in {early_stop_tolerance} steps.")
+                break
 
 
-def test(model, data, device, num_labels=2, batch_size=32):
+def evaluate(model, data, device, criterion, num_labels=2):
     model.eval()
-    accuracy, confusion_matrix = 0, np.zeros((num_labels, num_labels), dtype=int)
+    loss, accuracy, confusion_matrix = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
     with torch.no_grad():
         for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
             x, y = x.to(device), y.squeeze().to(device)
@@ -132,10 +138,9 @@ def test(model, data, device, num_labels=2, batch_size=32):
             for i in range(len(x)):
                 lens.append(len(x[i]))
             logits = model(x, sorted(lens))
+            loss += criterion(logits, y).item()
             accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
-    _, _, f1 = calculate_statistics(confusion_matrix)
-    print("[Test Stats]: acc = {:.3f}%, f1 = {:.3f}%".format(accuracy/len(data)/batch_size * 100, f1*100))
-    return accuracy, confusion_matrix
+    return loss, accuracy, confusion_matrix
 
 
 # test
