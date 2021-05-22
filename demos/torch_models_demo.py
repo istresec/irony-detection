@@ -64,8 +64,7 @@ if __name__ == '__main__':
     # Copy the pretrained GloVe word embeddings
     embedding_matrix.weight.data.copy_(torch.from_numpy(embeddings))
 
-    model = conf.model(embedding_matrix, embed_dim=conf.glove_dim, hidden_dim=conf.hidden_dim,
-                       num_layers=conf.num_layers, dropout=conf.dropout)
+    model = conf.model_constructor(embedding_matrix)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=conf.lr, weight_decay=conf.weight_decay)
