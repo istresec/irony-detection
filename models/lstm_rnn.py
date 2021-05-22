@@ -1,20 +1,22 @@
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import pack_padded_sequence
 
-import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
 
 class RNNClassifier(nn.Module):
-    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2):
+    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2, num_layers=2, dropout=0.2):
         super(RNNClassifier, self).__init__()
         self.embedding = embedding
+        self.n_layers = num_layers
+        self.hidden_dim = hidden_dim
         self.encoder = nn.LSTM(
             input_size=embed_dim,
             hidden_size=hidden_dim,
-            num_layers=5,
+            num_layers=num_layers,
             bidirectional=True,
-            dropout=0.2
+            dropout=dropout,
+            batch_first=True
         )
         self.decoder = nn.Sequential(
             nn.Linear(2*hidden_dim, hidden_dim),
@@ -22,16 +24,15 @@ class RNNClassifier(nn.Module):
             nn.Linear(hidden_dim, num_labels)
         )
 
+    def init_hidden(self, batch_size, device):
+        weight = next(self.parameters()).data
+        hidden = (weight.new(self.n_layers*2, batch_size, self.hidden_dim).zero_().to(device),
+                  weight.new(self.n_layers*2, batch_size, self.hidden_dim).zero_().to(device))
+        return hidden
+
     def forward(self, x, lengths):
         e = self.embedding(x)
-        h_pack = pack_padded_sequence(e,
-                                      lengths,
-                                      enforce_sorted=False,
-                                      batch_first=True)
-
-        _, h = self.encoder(h_pack) # [2L x B x H]
-        # Concat last state of left and right directions
-
-        h = torch.cat([h[-1], h[-2]], dim=-1) # [B x 2H]
-
-        return self.decoder(h)
+        packed_e = pack_padded_sequence(e, lengths, batch_first=True, enforce_sorted=False)
+        outputs, (hidden, cell) = self.encoder(packed_e)
+        hidden = torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)
+        return self.decoder(hidden)

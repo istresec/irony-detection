@@ -94,10 +94,8 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
         for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
             model.zero_grad()
             x, y = x.to(device), y.squeeze().to(device)
-            lens = []
-            for i in range(x.shape[0]):
-                lens.append(x[i].shape[0])
-            logits = model(x, sorted(lens))
+            lens = get_lengths(x)
+            logits = model(x, lens)
             accuracy_t, conf_mat_t = update_stats(accuracy_t, conf_mat_t, logits, y)
             loss = criterion(logits, y)
             loss_t += loss.item()
@@ -134,13 +132,25 @@ def evaluate(model, data, device, criterion, num_labels=2):
     with torch.no_grad():
         for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
             x, y = x.to(device), y.squeeze().to(device)
-            lens = []
-            for i in range(len(x)):
-                lens.append(len(x[i]))
-            logits = model(x, sorted(lens))
+            lens = get_lengths(x)
+            logits = model(x, lens)
             loss += criterion(logits, y).item()
             accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
     return loss, accuracy, confusion_matrix
+
+
+def get_lengths(x):
+    lens = []
+    for i in range(x.shape[0]):
+        idx_of_padding = (x[i] == 1).nonzero(as_tuple=True)[0]
+        if len(idx_of_padding) > 0:
+            idx_of_padding = idx_of_padding[0].detach().cpu().data.numpy().item()
+        else:
+            idx_of_padding = x.shape[1]
+        if idx_of_padding <= 0:
+            idx_of_padding = 1
+        lens.append(idx_of_padding)
+    return lens
 
 
 # test
