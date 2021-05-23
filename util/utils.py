@@ -108,6 +108,7 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
 
             model.zero_grad()
             lens = get_lengths(x)
+            x, y, lens = clean_zero_values(x, y, lens, batch_size)
 
             if not features:
                 logits = model(x, lens)
@@ -128,7 +129,7 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
 
         # Evaluate validation
         loss_v, acc_v, conf_mat_v = evaluate(model, data_valid, device, criterion, num_labels=num_labels,
-                                             features=features)
+                                             features=features, batch_size=batch_size)
         prec_v, recall_v, f1_v = calculate_statistics(conf_mat_v)
         print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
               .format(loss_v / len(data_valid), acc_v / len(data_valid) / batch_size * 100, f1_v * 100))
@@ -146,7 +147,7 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
                 break
 
 
-def evaluate(model, data, device, criterion, num_labels=2, features=False):
+def evaluate(model, data, device, criterion, num_labels=2, features=False, batch_size=32):
     model.eval()
     loss, accuracy, confusion_matrix = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
     with torch.no_grad():
@@ -159,6 +160,7 @@ def evaluate(model, data, device, criterion, num_labels=2, features=False):
                 x, f, y = x.to(device), f.to(device), y.squeeze().to(device)
 
             lens = get_lengths(x)
+            x, y, lens = clean_zero_values(x, y, lens, batch_size)
 
             if not features:
                 logits = model(x, lens)
@@ -177,10 +179,24 @@ def get_lengths(x):
             idx_of_padding = idx_of_padding[0].detach().cpu().data.numpy().item()
         else:
             idx_of_padding = x.shape[1]
-        if idx_of_padding <= 0:
-            idx_of_padding = 1
         lens.append(idx_of_padding)
     return lens
+
+
+def clean_zero_values(x, y, lengths, batch_size):
+    if 0 in lengths:
+        idx_0 = lengths.index(0)
+        if idx_0 == 0:
+            x = x[1:]
+            y = y[1:]
+        elif idx_0 == batch_size - 1 :
+            x = x[:-1]
+            y = y[:-1]
+        else:
+            x = torch.cat([x[:idx_0], x[idx_0 + 1:]])
+            y = torch.cat([y[:idx_0], y[idx_0 + 1:]])
+        lengths.remove(0)
+    return x, y, lengths
 
 
 # test

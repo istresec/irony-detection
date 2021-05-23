@@ -1,6 +1,5 @@
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from torch.nn.utils.rnn import pack_padded_sequence
 
-import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
