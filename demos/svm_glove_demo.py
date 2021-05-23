@@ -32,7 +32,7 @@ if __name__ == '__main__':
     spec.loader.exec_module(conf)
 
     # Initialize GloVe
-    glove = GloVe(dim=50)
+    glove = GloVe(dim=300)
 
     # Initialize model
     model = BasicModel(conf.backbone)

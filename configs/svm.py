@@ -13,7 +13,7 @@ backbone = LinearSVC(
     class_weight=None,
     verbose=0,
     random_state=None,
-    max_iter=10000
+    max_iter=20000
 )
 
 test_task = 'A'
