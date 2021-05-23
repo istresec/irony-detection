@@ -17,7 +17,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
 
     # Define configuration path
-    conf_path = Path("..\configs\cnn_dnn.py")
+    conf_path = Path("..\configs\cnn_lstm.py")
 
     # Get configuaration
     spec = importlib.util.spec_from_file_location('module', conf_path)

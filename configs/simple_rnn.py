@@ -19,7 +19,7 @@ test_emojis = True
 test_irony_hashtags = False
 
 remove_punctuation = True
-glove_dim = 300
-hidden_dim = 300
+glove_dim = 50
+hidden_dim = 50
 num_layers = 2
 dropout = 0.25
