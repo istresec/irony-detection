@@ -1,12 +1,12 @@
 from models.cnn_lstm import CnnRnnClassifier
 
 # Model config
-model_constructor = lambda e, f: CnnRnnClassifier(e, embedding_dim=glove_dim, conv1_filters=conv1_filters,
+model_constructor = lambda e, f, g: CnnRnnClassifier(e, embedding_dim=glove_dim, conv1_filters=conv1_filters,
                                                conv2_filters=conv2_filters, dropout_rate=dropout_rate,
                                                lstm_hidden_size=hidden_dim, fc_neurons=fc_neurons,
                                                num_labels=num_labels, conv1_kernel=conv1_kernel,
                                                conv1_padding=conv1_padding, conv2_kernel=conv2_kernel,
-                                               conv2_padding=conv2_padding)
+                                               conv2_padding=conv2_padding, max_length=f)
 batch_size = 32
 lr = 1e-5
 weight_decay = 1e-3

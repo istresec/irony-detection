@@ -83,9 +83,22 @@ class PytorchDataset(Dataset):
         return self.x[item], self.y[item]
 
 
+class PytorchFeatureDataset(Dataset):
+    def __init__(self, x, f, y):
+        self.x = torch.tensor(x, dtype=torch.long)
+        self.f = torch.tensor(f, dtype=torch.long)
+        self.y = torch.tensor(y, dtype=torch.long)
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, item):
+        return self.x[item], self.f[item], self.y[item]
+
+
 # test
 if __name__ == '__main__':
-    test_task = 'B'
+    test_task = 'A'
     test_emojis = True
     test_irony_hashtags = False
 

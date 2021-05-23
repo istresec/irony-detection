@@ -70,7 +70,7 @@ def update_stats(accuracy, confusion_matrix, logits, y):
     _, max_ind = torch.max(logits, 1)
     equal = torch.eq(max_ind, y)
     correct = int(torch.sum(equal))
-    for j, i in zip(max_ind, y):
+    for i, j in zip(y, max_ind):
         confusion_matrix[int(i), int(j)] += 1
     return accuracy + correct, confusion_matrix
 
@@ -82,14 +82,14 @@ def logger(path, accuracy, f1, precision, recall):
 
 def calculate_statistics(conf_matrix):
     tp = np.diag(conf_matrix)[1]
-    precision = tp / (tp + conf_matrix[0, 1])
-    recall = tp / (tp + conf_matrix[1, 0])
-    f1 = 2 * precision * recall / (precision + recall)
+    precision = tp / (tp + conf_matrix[0, 1] + 1e-15)
+    recall = tp / (tp + conf_matrix[1, 0] + 1e-15)
+    f1 = 2 * precision * recall / (precision + recall + 1e-15)
     return precision, recall, f1
 
 
 def train(model, data, data_valid, optimizer, criterion, device, path, num_labels=2, epochs=100,
-          batch_size=32, early_stopping=True, early_stop_tolerance=5, max_norm=0.25):
+          batch_size=32, early_stopping=True, early_stop_tolerance=5, max_norm=0.25, features=False):
     log_path_train = path / "logs_train.txt"
     log_path_valid = path / "logs_valid.txt"
 
@@ -98,24 +98,37 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
         # Train step
         model.train()
         loss_t, accuracy_t, conf_mat_t = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
-        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
+        for batch_idx, batch in tqdm.tqdm(enumerate(data), total=len(data)):
+            if not features:
+                x, y = batch
+                x, y = x.to(device), y.squeeze().to(device)
+            else:
+                x, f, y = batch
+                x, f, y = x.to(device), f.to(device), y.squeeze().to(device)
+
             model.zero_grad()
-            x, y = x.to(device), y.squeeze().to(device)
             lens = get_lengths(x)
-            logits = model(x, lens)
+
+            if not features:
+                logits = model(x, lens)
+            else:
+                logits = model(x, lens, f)
+
             accuracy_t, conf_mat_t = update_stats(accuracy_t, conf_mat_t, logits, y)
             loss = criterion(logits, y)
             loss_t += loss.item()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
             optimizer.step()
+
         prec_t, recall_t, f1_t = calculate_statistics(conf_mat_t)
         print("[Train Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
               .format(loss_t / len(data), accuracy_t / len(data) / batch_size * 100, f1_t * 100))
         logger(log_path_train, accuracy_t, f1_t, prec_t, recall_t)
 
         # Evaluate validation
-        loss_v, acc_v, conf_mat_v = evaluate(model, data_valid, device, criterion, num_labels=num_labels)
+        loss_v, acc_v, conf_mat_v = evaluate(model, data_valid, device, criterion, num_labels=num_labels,
+                                             features=features)
         prec_v, recall_v, f1_v = calculate_statistics(conf_mat_v)
         print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
               .format(loss_v / len(data_valid), acc_v / len(data_valid) / batch_size * 100, f1_v * 100))
@@ -133,14 +146,24 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
                 break
 
 
-def evaluate(model, data, device, criterion, num_labels=2):
+def evaluate(model, data, device, criterion, num_labels=2, features=False):
     model.eval()
     loss, accuracy, confusion_matrix = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
     with torch.no_grad():
-        for batch_idx, (x, y) in tqdm.tqdm(enumerate(data), total=len(data)):
-            x, y = x.to(device), y.squeeze().to(device)
+        for batch_idx, batch in tqdm.tqdm(enumerate(data), total=len(data)):
+            if not features:
+                x, y = batch
+                x, y = x.to(device), y.squeeze().to(device)
+            else:
+                x, f, y = batch
+                x, f, y = x.to(device), f.to(device), y.squeeze().to(device)
+
             lens = get_lengths(x)
-            logits = model(x, lens)
+
+            if not features:
+                logits = model(x, lens)
+            else:
+                logits = model(x, lens, f)
             loss += criterion(logits, y).item()
             accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
     return loss, accuracy, confusion_matrix
@@ -169,11 +192,13 @@ if __name__ == '__main__':
     spec.loader.exec_module(conf)
 
     print('Without padding:')
-    x, y, x_t, y_t, x_v, y_v, _ = load_and_preprocess(conf, padding=False)
+    x, y, x_v, y_v, x_t, y_t, _ = load_and_preprocess(conf, padding=False)
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
+    print(f"Shapes | x_v: {x_v.shape}, y_v: {y_v.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")
 
     print('With padding:')
-    x, y, x_t, y_t, x_v, y_v, _ = load_and_preprocess(conf, padding=True)
+    x, y, x_v, y_v, x_t, y_t, _ = load_and_preprocess(conf, padding=True)
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
+    print(f"Shapes | x_v: {x_v.shape}, y_v: {y_v.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")

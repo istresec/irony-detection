@@ -15,6 +15,7 @@ import numpy as np
 
 ellipsis_matcher = re.compile(r"\.{2,}")
 
+
 def lower(raw: str) -> str:
     """
     Returns a lowercase copy of the input text.
@@ -23,6 +24,7 @@ def lower(raw: str) -> str:
     :return: A lowercase copy of the input text. String.
     """
     return raw.lower()
+
 
 def count_character(characters):
     """
@@ -33,6 +35,7 @@ def count_character(characters):
     """
     return lambda raw, tokenized: (raw, [character in characters for character in raw].count(True))
 
+
 def count_ellipses(raw, tokenized):
     """
     Counts ellipses in raw text.
@@ -42,6 +45,7 @@ def count_ellipses(raw, tokenized):
     :return: Ellipsis count
     """
     return raw, len(ellipsis_matcher.findall(raw))
+
 
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
                             finalize: bool = True, use_vocab=True, vocab_size=10000,
@@ -64,7 +68,6 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     if use_vocab:
         vocab = Vocab(max_size=vocab_size)
 
-
     # Fields used in data preprocessing
     text = Field(name='input_text', numericalizer=vocab, keep_raw=True)
     dots = Field(name='dots', posttokenize_hooks=[count_character('.')])
@@ -74,11 +77,10 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     quotes = Field(name='quotes', posttokenize_hooks=[count_character('"\'')])
     interpunctions = Field(name='interpunctions', posttokenize_hooks=[count_character(string.punctuation)])
 
-
     cleanup = TextCleanUp(remove_punct=remove_punct)
     # Field collection with shared preprocessing
     multi = MultioutputField(output_fields=[text] if remove_punct
-                             else [text, dots, question_marks, exclamation_marks, ellipses, quotes, interpunctions],
+    else [text, dots, question_marks, exclamation_marks, ellipses, quotes, interpunctions],
                              pretokenize_hooks=[lower, cleanup],
                              tokenizer=TweetTokenizer(preserve_case=False,
                                                       reduce_len=True, strip_handles=True).tokenize)

@@ -1,7 +1,7 @@
 from models.cnn_dnn import CnnDnnClassifier
 
 # Model config
-model_constructor = lambda e, f: CnnDnnClassifier(e, embedding_dim=glove_dim, conv1_filters=conv1_filters,
+model_constructor = lambda e, f, g: CnnDnnClassifier(e, embedding_dim=glove_dim, conv1_filters=conv1_filters,
                                                conv2_filters=conv2_filters, dropout_rate=dropout_rate,
                                                fc_neurons=fc_neurons, num_labels=num_labels, max_length=f,
                                                conv1_kernel=conv1_kernel, conv2_kernel=conv2_kernel,

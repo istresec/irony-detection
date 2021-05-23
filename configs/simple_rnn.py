@@ -1,7 +1,7 @@
 from models.simple_rnn import RNNClassifier
 
 # Model config
-model_constructor = lambda e: RNNClassifier(e, embed_dim=glove_dim, hidden_dim=hidden_dim,
+model_constructor = lambda e, f, g: RNNClassifier(e, embed_dim=glove_dim, hidden_dim=hidden_dim,
                                             num_layers=num_layers, dropout=dropout)
 batch_size = 32
 lr = 1e-4

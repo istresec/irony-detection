@@ -7,8 +7,7 @@ import torch
 class CnnRnnClassifier(nn.Module):
     def __init__(self, embedding, embedding_dim=50, conv1_filters=64, conv2_filters=128, dropout_rate=0.2,
                  lstm_hidden_size=20, fc_neurons=128, num_labels=2, conv1_kernel=5, conv1_padding=2,
-                 conv2_kernel=3, conv2_padding=1):
-
+                 conv2_kernel=3, conv2_padding=1, max_length=199):
         super().__init__()
 
         self.embedding = embedding
@@ -22,29 +21,31 @@ class CnnRnnClassifier(nn.Module):
         self.lstm = nn.LSTM(input_size=conv2_filters, hidden_size=lstm_hidden_size, num_layers=2,
                             bidirectional=True, batch_first=True)
 
-        self.fc1 = nn.Linear(in_features=2*lstm_hidden_size, out_features=fc_neurons)
+        self.fc1 = nn.Linear(in_features=2 * lstm_hidden_size * max_length, out_features=fc_neurons)
         self.fc2 = nn.Linear(in_features=fc_neurons, out_features=num_labels)
 
     def forward(self, x, lengths):
         e = self.embedding(x)
-        e = e.transpose(1, 2)
+        e = e.transpose(1, 2)  # [B x C x D]
         e = self.conv1(e)
-        e = torch.relu(e)
+        e = torch.sigmoid(e)  # relu
         e = self.conv2(e)
-        e = torch.relu(e)
+        e = torch.sigmoid(e)  # relu
         e = self.dropout(e)
 
-        h_pack = pack_padded_sequence(e,
-                                      lengths,
-                                      enforce_sorted=False,
-                                      batch_first=True)
+        # h_pack = pack_padded_sequence(e,
+        #                               lengths,
+        #                               enforce_sorted=False,
+        #                               batch_first=True)
+
         e = e.transpose(1, 2)
-        _, (h, c) = self.lstm(e) # [2L x B x H]
+        o, (h, c) = self.lstm(e)  # [2L x B x H]
+
         # Concat last state of left and right directions
+        # h = torch.cat([h[-1], h[-2]], dim=-1)  # [B x 2H]
 
-        h = torch.cat([h[-1], h[-2]], dim=-1)  # [B x 2H]
-
+        h = torch.flatten(o, start_dim=1)
         h = self.fc1(h)
-        h = torch.relu(h)
+        h = torch.sigmoid(h)  # relu
         h = self.fc2(h)
         return h
