@@ -2,6 +2,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 import torch
+import csv
 
 encoding = 'UTF-8'
 train_path = '../datasets/train/SemEval2018-T3-train-task'
@@ -36,7 +37,7 @@ def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False
     dataset_path += '_ironyHashtags' if irony_hashtags else ''
     dataset_path += '.txt'
 
-    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding)
+    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding, quoting=csv.QUOTE_NONE)
     df.pop('Tweet index')
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
@@ -64,7 +65,7 @@ def load_test_data(task: str, emojis: bool = True):
     dataset_path += '_emoji' if emojis else ''
     dataset_path += '.txt'
 
-    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding)
+    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding, quoting=csv.QUOTE_NONE)
     df.pop('Tweet index')
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
