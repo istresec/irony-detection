@@ -31,41 +31,37 @@ def load_and_preprocess(config, padding=False):
     valid_dataset = preprocess_and_tokenize(valid_data, remove_punct=config.remove_punctuation, use_vocab=False)
 
     # Data now could contain additional punctuation fields
-    data = train_dataset.batch(add_padding=padding)
+    data = train_dataset.batch()
     x, y = data.pop('input_text'), data.pop('target')
     data_v = valid_dataset.batch()
     x_v, y_v = data_v.pop('input_text'), data_v.pop('target')
     data_t = test_dataset.batch()
-    x_t_p, y_t = data_t.pop('input_text'), data_t.pop('target')
+    x_t, y_t = data_t.pop('input_text'), data_t.pop('target')
 
     if padding:
-        required_length = x.shape[1]
+        required_length = max([len(i) for i in x] + [len(i) for i in x_v] + [len(i) for i in x_t])
         padding = [PAD()]
-        for tweet in x_t_p:
-            tweet_len = len(tweet)
-            if tweet_len < required_length:
-                tweet += padding * (required_length - tweet_len)
+        for i in range(len(x)):
+            tweet_len = len(x[i])
+            if required_length > tweet_len:
+                x[i] = np.concatenate((x[i], vocab.numericalize(np.array(padding * (required_length - tweet_len)))))
         for tweet in x_v:
             tweet_len = len(tweet)
-            if tweet_len < required_length:
+            if required_length > tweet_len:
                 tweet += padding * (required_length - tweet_len)
-        # TODO: BUG -- if using padding and when *not* removing punctuation (remove_punctuation=False)
-        # TODO: dataset.batch method returns a float type numpy array instead of an integer type array
-        # TODO: remove if bug found
-        x = x.astype(int)
-    else:
-        x = np.array(x, dtype=object)
-        y = np.array(y)
+        for tweet in x_t:
+            tweet_len = len(tweet)
+            if required_length > tweet_len:
+                tweet += padding * (required_length - tweet_len)
 
-    x_t_tmp = []
-    for tweet in x_t_p:
-        num_x_t = vocab.numericalize(tweet)
-        x_t_tmp.append(num_x_t)
-    x_t = np.array(x_t_tmp, dtype=object if not padding else None)
-    y_t = np.array(y_t)
+    x = np.array(x, dtype=object if not padding else int)
+    y = np.array(y_v)
 
-    x_val = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else None)
+    x_val = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else int)
     y_val = np.array(y_v)
+
+    x_t = np.array([vocab.numericalize(tweet) for tweet in x_t], dtype=object if not padding else int)
+    y_t = np.array(y_t)
 
     ret_data = (x, y, x_val, y_val, x_t, y_t, vocab) if config.remove_punctuation \
         else (x, y, x_val, y_val, x_t, y_t, vocab, data, data_v, data_t)
@@ -196,7 +192,7 @@ def clean_zero_values(x, y, lengths, batch_size):
         if idx_0 == 0:
             x = x[1:]
             y = y[1:]
-        elif idx_0 == batch_size - 1 :
+        elif idx_0 == batch_size - 1:
             x = x[:-1]
             y = y[:-1]
         else:
