@@ -53,9 +53,7 @@ if __name__ == '__main__':
         test_dataloader = DataLoader(test_dataset, batch_size=conf.batch_size, num_workers=2)
     else:
         x, y, x_val, y_val, x_test, y_test, vocab, data, data_v, data_t = load_and_preprocess(conf, padding=True)
-        # TODO random bug number 2 - shape is [1 x N x F], should be [N x F]
-        # TODO fixed by indexing the first element (val and test work fine)
-        features = np.array([feature for feature in data]).transpose()[0]
+        features = np.array([feature for feature in data]).transpose()
         features_val = np.array([feature for feature in data_v]).transpose()
         features_test = np.array([feature for feature in data_t]).transpose()
 
@@ -92,7 +90,7 @@ if __name__ == '__main__':
     train(model, train_dataloader, valid_dataloader, optimizer, criterion, device, path, num_labels=2,
           epochs=conf.epochs, batch_size=conf.batch_size, early_stopping=conf.early_stopping,
           early_stop_tolerance=conf.early_stop_tolerance, features=not conf.remove_punctuation)
-    torch.save(model, path / "model.pth")
+    torch.save(model, path / "best_model.pth")
 
     # Testing the model
     model = torch.load(path / "best_model.pth")

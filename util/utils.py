@@ -30,6 +30,11 @@ def load_and_preprocess(config, padding=False):
     # Data now could contain additional punctuation fields
     data = train_dataset.batch(add_padding=padding)
     x, y = data.pop('input_text'), data.pop('target')
+    # Added as features shouldn't be padded
+    if padding:
+        for key in data.keys():
+            data[key] = [datum[0] for datum in data[key]]
+    # Features aren't padded here so no fixing is needed
     data_v = valid_dataset.batch()
     x_v, y_v = data_v.pop('input_text'), data_v.pop('target')
     data_t = test_dataset.batch()
