@@ -33,7 +33,7 @@ def count_character(characters):
     :param characters: The characters to be counted in the raw text.
     :return: Character count in raw text
     """
-    return lambda raw, tokenized: (raw, [character in characters for character in raw].count(True))
+    return lambda raw, tokenized: (raw, [character in characters for character in tokenized].count(True))
 
 
 def count_ellipses(raw, tokenized):
@@ -68,25 +68,26 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     if use_vocab:
         vocab = Vocab(max_size=vocab_size)
 
-    # Fields used in data preprocessing
-    text = Field(name='input_text', numericalizer=vocab, keep_raw=True)
-    dots = Field(name='dots', posttokenize_hooks=[count_character('.')])
-    question_marks = Field(name='questions', posttokenize_hooks=[count_character('?')])
-    exclamation_marks = Field(name='exclamations', posttokenize_hooks=[count_character('!')])
-    ellipses = Field(name='ellipses', posttokenize_hooks=[count_ellipses])
-    quotes = Field(name='quotes', posttokenize_hooks=[count_character('"\'')])
-    interpunctions = Field(name='interpunctions', posttokenize_hooks=[count_character(string.punctuation)])
-
     cleanup = TextCleanUp(remove_punct=remove_punct)
-    # Field collection with shared preprocessing
-    multi = MultioutputField(output_fields=[text] if remove_punct
-    else [text, dots, question_marks, exclamation_marks, ellipses, quotes, interpunctions],
-                             pretokenize_hooks=[lower, cleanup],
-                             tokenizer=TweetTokenizer(preserve_case=False,
-                                                      reduce_len=True, strip_handles=True).tokenize)
+    ellipsis = RegexReplace(replace_patterns=[(r"\.{2,}", '...')])
 
+    # Fields used in data preprocessing
+    text = Field(name='input_text', numericalizer=vocab, pretokenize_hooks=[lower, cleanup, ellipsis],
+                 tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True, strip_handles=True).tokenize)
     label = LabelField(name='target', is_target=True)
-    fields = {text_name: multi, label_name: label}
+
+    if not remove_punct:
+        # Feature fields
+        dots = Field(name='dots', posttokenize_hooks=[count_character('.')], tokenizer=None)
+        question_marks = Field(name='questions', posttokenize_hooks=[count_character('?')], tokenizer=None)
+        exclamation_marks = Field(name='exclamations', posttokenize_hooks=[count_character('!')], tokenizer=None)
+        ellipses = Field(name='ellipses', posttokenize_hooks=[count_ellipses], tokenizer=None)
+        quotes = Field(name='quotes', posttokenize_hooks=[count_character('"\'')], tokenizer=None)
+        interpunctions = Field(name='interpunctions', posttokenize_hooks=[count_character(string.punctuation)],
+                               tokenizer=None)
+
+    fields = {text_name: text if remove_punct else
+    (text, dots, question_marks, exclamation_marks, ellipses, quotes, interpunctions), label_name: label}
 
     dataset = TabularDataset.from_pandas(df=dataset, fields=fields)
 
