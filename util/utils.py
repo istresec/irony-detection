@@ -19,11 +19,10 @@ def load_and_preprocess(config, padding=False):
     :param padding: Determines if data is padded or not, False by default. Boolean.
     :return: The training data and labels x and y, the test data and labels x_test and y_test, and the vocab.
     """
-    """
-    train_data, valid_data = load_train_data(config.test_task, emojis=config.test_emojis,
-                                             irony_hashtags=config.test_irony_hashtags, split=True)
-    test_data = load_test_data(config.test_task, emojis=config.test_emojis)
-    """
+    # train_data, valid_data = load_train_data(config.test_task, emojis=config.test_emojis,
+    #                                          irony_hashtags=config.test_irony_hashtags, split=True)
+    # test_data = load_test_data(config.test_task, emojis=config.test_emojis)
+
     train_data, valid_data, test_data = load_imdb()
 
     train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=config.remove_punctuation)
@@ -55,7 +54,7 @@ def load_and_preprocess(config, padding=False):
                 tweet += padding * (required_length - tweet_len)
 
     x = np.array(x, dtype=object if not padding else int)
-    y = np.array(y_v)
+    y = np.array(y)
 
     x_val = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else int)
     y_val = np.array(y_v)
