@@ -15,7 +15,10 @@ class SimpleClassifier(nn.Module):
 
     def forward(self, x, lengths, features=None):
         e = self.embedding(x)
-        e = torch.mean(e, dim=1)
+
+        # Get embedding average using lengths
+        e = torch.sum(e, dim=1)
+        e = torch.div(e, torch.tensor(lengths).to(device=e.device)[:, None])
 
         e_and_f = torch.cat((e, features), dim=1) if self.features else e
 
