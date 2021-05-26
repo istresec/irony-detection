@@ -72,6 +72,14 @@ def load_test_data(task: str, emojis: bool = True):
     return df
 
 
+def load_imdb():
+    df = pd.read_csv("../datasets/IMDB Dataset.csv", delimiter=",", encoding="utf-8")
+    df = df.rename(columns={"review": "text", "sentiment": "label"})
+    df_train, df_test = train_test_split(df, test_size=0.5)
+    df_train, df_valid = train_test_split(df_train, test_size=0.2)
+    return df_train, df_valid, df_test
+
+
 class PytorchDataset(Dataset):
     def __init__(self, x, y):
         self.x = torch.tensor(x, dtype=torch.long)
