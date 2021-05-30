@@ -11,18 +11,18 @@ import torch
 import numpy as np
 
 if __name__ == '__main__':
-    # Set seeds for reproducibility
-    seed = 1337
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-
     # Define configuration path
-    conf_path = Path("..\configs\\simple_rnn.py")
+    conf_path = Path("../configs/cnn_lstm.py")
 
     # Get configuaration
     spec = importlib.util.spec_from_file_location('module', conf_path)
     conf = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(conf)
+
+    # Set seeds for reproducibility
+    seed = conf.seed
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
     # Save options
     path = Path(conf.save_path)
@@ -91,13 +91,24 @@ if __name__ == '__main__':
           early_stop_tolerance=conf.early_stop_tolerance, features=conf.use_features)
     torch.save(model, path / "model.pth")
 
-    # Testing the model
+    # Testing the best model
     model = torch.load(path / "best_model.pth")
     model.to(device)
     loss, acc, conf_matrix = evaluate(model, test_dataloader, device, criterion, num_labels=2,
                                       features=conf.use_features)
     acc_percentage = acc / len(test_dataloader) / conf.batch_size
     precision, recall, f1 = calculate_statistics(conf_matrix)
-    print("[Test Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
+    print("[Test Stats - Best model]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
+          .format(loss / len(test_dataloader), acc / len(test_dataloader) / conf.batch_size * 100, f1 * 100))
+    logger(log_path_test, acc_percentage, f1, precision, recall)
+
+    # Testing the model
+    model = torch.load(path / "model.pth")
+    model.to(device)
+    loss, acc, conf_matrix = evaluate(model, test_dataloader, device, criterion, num_labels=2,
+                                      features=conf.use_features)
+    acc_percentage = acc / len(test_dataloader) / conf.batch_size
+    precision, recall, f1 = calculate_statistics(conf_matrix)
+    print("[Test Stats - Final model]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
           .format(loss / len(test_dataloader), acc / len(test_dataloader) / conf.batch_size * 100, f1 * 100))
     logger(log_path_test, acc_percentage, f1, precision, recall)

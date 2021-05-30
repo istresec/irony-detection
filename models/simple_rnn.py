@@ -5,8 +5,10 @@ import torch
 
 
 class RNNClassifier(nn.Module):
-    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2, num_layers=2, dropout=0.2):
+    def __init__(self, embedding, embed_dim=300, hidden_dim=300, num_labels=2, num_layers=2, dropout=0.2,
+                 features_dim=6):
         super(RNNClassifier, self).__init__()
+        self.features = True if features_dim > 0 else False
         self.embedding = embedding
         self.encoder = nn.GRU(
             input_size=embed_dim,
@@ -16,12 +18,12 @@ class RNNClassifier(nn.Module):
             dropout=dropout
         )
         self.decoder = nn.Sequential(
-            nn.Linear(2*hidden_dim, hidden_dim),
+            nn.Linear(2*hidden_dim + features_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, num_labels)
         )
 
-    def forward(self, x, lengths):
+    def forward(self, x, lengths, features=None):
         e = self.embedding(x)
         h_pack = pack_padded_sequence(e,
                                       lengths,
@@ -33,4 +35,9 @@ class RNNClassifier(nn.Module):
 
         h = torch.cat([h[-1], h[-2]], dim=-1) # [B x 2H]
 
-        return self.decoder(h)
+        if self.features:
+            inputs = torch.cat((h, features), dim=1)
+        else:
+            inputs = h
+
+        return self.decoder(inputs)
