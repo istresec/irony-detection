@@ -23,21 +23,18 @@ def load_and_preprocess(config, padding=False):
                                              irony_hashtags=config.test_irony_hashtags, split=True)
     test_data = load_test_data(config.test_task, emojis=config.test_emojis)
 
-    # train_data, valid_data, test_data = load_imdb()
-
-    train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=config.remove_punctuation)
-    test_dataset = preprocess_and_tokenize(test_data, remove_punct=config.remove_punctuation, use_vocab=False)
-    valid_dataset = preprocess_and_tokenize(valid_data, remove_punct=config.remove_punctuation, use_vocab=False)
+    train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=config.remove_punctuation,
+                                                   use_features=config.use_features)
+    valid_dataset = preprocess_and_tokenize(valid_data, remove_punct=config.remove_punctuation, use_vocab=False,
+                                            use_features=config.use_features)
+    test_dataset = preprocess_and_tokenize(test_data, remove_punct=config.remove_punctuation, use_vocab=False,
+                                           use_features=config.use_features)
 
     # Data now could contain additional punctuation fields
     data = train_dataset.batch()
     x, y = data.pop('input_text'), data.pop('target')
-    # Added as features shouldn't be padded
-    if padding:
-        for key in data.keys():
-            data[key] = [datum[0] for datum in data[key]]
-    # Features aren't padded here so no fixing is needed
     data_v = valid_dataset.batch()
+    # TODO: y_v is flipped, fixed below, batch is bugged as hell yo ;;)))))))))
     x_v, y_v = data_v.pop('input_text'), data_v.pop('target')
     data_t = test_dataset.batch()
     x_t, y_t = data_t.pop('input_text'), data_t.pop('target')
@@ -61,14 +58,15 @@ def load_and_preprocess(config, padding=False):
     x = np.array(x, dtype=object if not padding else int)
     y = np.array(y)
 
-    x_val = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else int)
-    y_val = np.array(y_v)
+    x_v = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else int)
+    # TODO: fix for error above
+    y_v = (np.array(y_v) + 1) % 2
 
     x_t = np.array([vocab.numericalize(tweet) for tweet in x_t], dtype=object if not padding else int)
     y_t = np.array(y_t)
 
-    ret_data = (x, y, x_val, y_val, x_t, y_t, vocab) if config.remove_punctuation \
-        else (x, y, x_val, y_val, x_t, y_t, vocab, data, data_v, data_t)
+    ret_data = (x, y, x_v, y_v, x_t, y_t, vocab) if not config.use_features \
+        else (x, y, x_v, y_v, x_t, y_t, vocab, data, data_v, data_t)
 
     return ret_data
 
@@ -115,19 +113,20 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
 
             model.zero_grad()
             lens = get_lengths(x)
-            x, y, lens = clean_zero_values(x, y, lens, batch_size)
+            # x, y, lens = clean_zero_values(x, y, lens, batch_size)
 
             if not features:
                 logits = model(x, lens)
             else:
                 logits = model(x, lens, f)
 
-            accuracy_t, conf_mat_t = update_stats(accuracy_t, conf_mat_t, logits, y)
             loss = criterion(logits, y)
-            loss_t += loss.item()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_norm)
             optimizer.step()
+
+            loss_t += loss.item()
+            accuracy_t, conf_mat_t = update_stats(accuracy_t, conf_mat_t, logits, y)
 
         prec_t, recall_t, f1_t = calculate_statistics(conf_mat_t)
         print("[Train Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
@@ -167,7 +166,7 @@ def evaluate(model, data, device, criterion, num_labels=2, features=False, batch
                 x, f, y = x.to(device), f.to(device), y.squeeze().to(device)
 
             lens = get_lengths(x)
-            x, y, lens = clean_zero_values(x, y, lens, batch_size)
+            # x, y, lens = clean_zero_values(x, y, lens, batch_size)
 
             if not features:
                 logits = model(x, lens)

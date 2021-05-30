@@ -17,7 +17,7 @@ if __name__ == '__main__':
     torch.manual_seed(seed)
 
     # Define configuration path
-    conf_path = Path("..\configs\\basic_nn.py")
+    conf_path = Path("..\configs\\simple_rnn.py")
 
     # Get configuaration
     spec = importlib.util.spec_from_file_location('module', conf_path)
@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     # Loading data
     feature_dim = 0
-    if conf.remove_punctuation:
+    if not conf.use_features:
         x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
         train_dataset = PytorchDataset(x, y)
         valid_dataset = PytorchDataset(x_val, y_val)
@@ -74,8 +74,7 @@ if __name__ == '__main__':
     embeddings = glove.load_vocab(vocab)
     embed_dim = conf.glove_dim
     padding_index = vocab.get_padding_index()
-    embedding_matrix = nn.Embedding(len(vocab), embed_dim,
-                                    padding_idx=padding_index)
+    embedding_matrix = nn.Embedding(len(vocab), embed_dim, padding_idx=padding_index)
 
     # Copy the pretrained GloVe word embeddings
     embedding_matrix.weight.data.copy_(torch.from_numpy(embeddings))
@@ -89,14 +88,14 @@ if __name__ == '__main__':
     # Train
     train(model, train_dataloader, valid_dataloader, optimizer, criterion, device, path, num_labels=2,
           epochs=conf.epochs, batch_size=conf.batch_size, early_stopping=conf.early_stopping,
-          early_stop_tolerance=conf.early_stop_tolerance, features=not conf.remove_punctuation)
-    torch.save(model, path / "best_model.pth")
+          early_stop_tolerance=conf.early_stop_tolerance, features=conf.use_features)
+    torch.save(model, path / "model.pth")
 
     # Testing the model
     model = torch.load(path / "best_model.pth")
     model.to(device)
     loss, acc, conf_matrix = evaluate(model, test_dataloader, device, criterion, num_labels=2,
-                                      features=not conf.remove_punctuation)
+                                      features=conf.use_features)
     acc_percentage = acc / len(test_dataloader) / conf.batch_size
     precision, recall, f1 = calculate_statistics(conf_matrix)
     print("[Test Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"

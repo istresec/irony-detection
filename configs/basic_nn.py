@@ -18,6 +18,7 @@ test_type = 'test'
 test_emojis = True
 test_irony_hashtags = True
 
-remove_punctuation = True
+remove_punctuation = False
+use_features = True
 glove_dim = 300
 hidden_dim = 300

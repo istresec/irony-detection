@@ -21,7 +21,7 @@ class CnnRnnClassifier(nn.Module):
         self.lstm = nn.LSTM(input_size=conv2_filters, hidden_size=lstm_hidden_size, num_layers=2,
                             bidirectional=True, batch_first=True)
 
-        self.fc1 = nn.Linear(in_features=2 * lstm_hidden_size * max_length, out_features=fc_neurons)
+        self.fc1 = nn.Linear(in_features=2 * lstm_hidden_size, out_features=fc_neurons)
         self.fc2 = nn.Linear(in_features=fc_neurons, out_features=num_labels)
 
     def forward(self, x, lengths):
@@ -42,9 +42,9 @@ class CnnRnnClassifier(nn.Module):
         o, (h, c) = self.lstm(e)  # [2L x B x H]
 
         # Concat last state of left and right directions
-        # h = torch.cat([h[-1], h[-2]], dim=-1)  # [B x 2H]
+        h = torch.cat([h[-1], h[-2]], dim=-1)  # [B x 2H]
 
-        h = torch.flatten(o, start_dim=1)
+        h = torch.flatten(h, start_dim=1)
         h = self.fc1(h)
         h = torch.sigmoid(h)  # relu
         h = self.fc2(h)
