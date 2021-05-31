@@ -41,11 +41,15 @@ if __name__ == '__main__':
 
     # Without punctuation
     conf.remove_punctuation = True
+    conf.use_features = False
     x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=False)
     embeddings = glove.load_vocab(vocab)
     x = get_embedding_format(x, embeddings)
     x_val = get_embedding_format(x_val, embeddings)
     x_test = get_embedding_format(x_test, embeddings)
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
@@ -61,11 +65,15 @@ if __name__ == '__main__':
 
     # With punctuation
     conf.remove_punctuation = False
-    x, y, x_val, y_val, x_test, y_test, vocab, data, data_v, data_t = load_and_preprocess(conf, padding=False)
+    conf.use_features = False
+    x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=False)
     embeddings = glove.load_vocab(vocab)
     x = get_embedding_format(x, embeddings)
     x_val = get_embedding_format(x_val, embeddings)
     x_test = get_embedding_format(x_test, embeddings)
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
@@ -81,6 +89,7 @@ if __name__ == '__main__':
 
     # With punctuation and features
     conf.remove_punctuation = False
+    conf.use_features = True
     x, y, x_val, y_val, x_test, y_test, vocab, data, data_v, data_t = load_and_preprocess(conf, padding=False)
     embeddings = glove.load_vocab(vocab)
     x = get_embedding_format(x, embeddings)
@@ -92,7 +101,9 @@ if __name__ == '__main__':
     x_test = get_embedding_format(x_test, embeddings)
     features_test = np.array([feature for feature in data_t]).transpose()
     x_test = np.concatenate((x_test, features_test), axis=1)
-
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
 
     # Train model via embeddings
     model.fit(x, y.ravel())

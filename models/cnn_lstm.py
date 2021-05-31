@@ -12,7 +12,7 @@ class CnnRnnClassifier(nn.Module):
 
         self.embedding = embedding
         self.features = True if features_dim > 0 else False
-        self.conv1 = nn.Conv1d(in_channels=embedding_dim + features_dim, out_channels=conv1_filters,
+        self.conv1 = nn.Conv1d(in_channels=max_length, out_channels=conv1_filters,
                                kernel_size=conv1_kernel, padding=conv1_padding)
         self.conv2 = nn.Conv1d(in_channels=conv1_filters, out_channels=conv2_filters,
                                kernel_size=conv2_kernel, padding=conv2_padding)
@@ -21,19 +21,14 @@ class CnnRnnClassifier(nn.Module):
         self.lstm = nn.LSTM(input_size=conv2_filters, hidden_size=lstm_hidden_size, num_layers=2,
                             bidirectional=True, batch_first=True)
 
-        self.fc1 = nn.Linear(in_features=2 * lstm_hidden_size, out_features=fc_neurons)
+        self.fc1 = nn.Linear(in_features=2 * lstm_hidden_size + features_dim, out_features=fc_neurons)
         self.fc2 = nn.Linear(in_features=fc_neurons, out_features=num_labels)
 
     def forward(self, x, lengths, features=None):
         e = self.embedding(x)
 
-        e = torch.sum(e, dim=1)
-        e = torch.div(e, torch.tensor(lengths).to(device=e.device)[:, None])
-        e_and_f = torch.cat((e, features), dim=1) if self.features else e
-
-        e = self.conv1(e_and_f)
         e = self.conv1(e)
-        e = torch.sigmoid(e)  # relu
+        e = torch.sigmoid(e)  # relu - sigmoid in the paper
         e = self.conv2(e)
         e = torch.sigmoid(e)  # relu
         e = self.dropout(e)
@@ -45,7 +40,11 @@ class CnnRnnClassifier(nn.Module):
         h = torch.cat([h[-1], h[-2]], dim=-1)  # [B x 2H]
 
         h = torch.flatten(h, start_dim=1)
-        h = self.fc1(h)
+
+        # Concat features if they are used
+        h_and_f = torch.cat((h, features), dim=1) if self.features else e
+
+        h = self.fc1(h_and_f)
         h = torch.sigmoid(h)  # relu
         h = self.fc2(h)
         return h
