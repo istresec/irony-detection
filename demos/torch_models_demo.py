@@ -1,14 +1,15 @@
-from util.utils import load_and_preprocess, update_stats, logger, calculate_statistics, train, evaluate
-from models.simple_rnn import RNNClassifier
+from util.utils import load_and_preprocess, logger, calculate_statistics, train, evaluate
 from util.dataloader import PytorchDataset, PytorchFeatureDataset
 from torch.utils.data import DataLoader
 from podium.vectorizers import GloVe
 from pathlib import Path
+from shutil import copy
 
 import torch.nn as nn
+import numpy as np
 import importlib
 import torch
-import numpy as np
+
 
 if __name__ == '__main__':
     # Define configuration path
@@ -28,6 +29,8 @@ if __name__ == '__main__':
     path = Path(conf.save_path)
     if not path.exists():
         path.mkdir(parents=True, exist_ok=True)
+
+    copy(conf_path, str(path / 'config.py'))
 
     log_path_train = path / "logs_train.txt"
     log_path_valid = path / "logs_valid.txt"

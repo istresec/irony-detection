@@ -1,10 +1,11 @@
 from models.simple_rnn import RNNClassifier
+from datetime import datetime
 
 # Model config
-glove_dim = 50
-hidden_dim = 50
+glove_dim = 300
+hidden_dim = 300
 num_layers = 2
-dropout = 0.25
+dropout = 0.2
 model_constructor = lambda e, f, g: RNNClassifier(e, embed_dim=glove_dim, hidden_dim=hidden_dim,
                                                   num_layers=num_layers, dropout=dropout, features_dim=g)
 
@@ -27,7 +28,7 @@ remove_punctuation = False
 use_features = True
 
 # Save configuration
-punctuation = "punctuation" if not remove_punctuation else "removed"
-features = "features" if use_features else ""
-save_path = f"../saves/simple_rnn_{seed}_{punctuation}_{features}/"
+now = datetime.now()
+dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
+save_path = f"../saves/simple_rnn_{dt_string}/"
 
