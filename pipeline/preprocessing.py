@@ -1,19 +1,18 @@
 import re
 
-from podium import TabularDataset, Dataset, Field, Vocab, LabelField, Iterator, MultioutputField
-from podium.preproc import TextCleanUp, RegexReplace, as_posttokenize_hook
+from podium import TabularDataset, Dataset, Field, Vocab, LabelField
+from podium.preproc import TextCleanUp, RegexReplace
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import TweetTokenizer
 from podium.vocab import PAD
 import string
 
-from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
 
 import pandas as pd
 import numpy as np
 
-ellipsis_matcher = re.compile(r"\.{2,}")
+ellipsis_matcher = re.compile(r'(\.{2,5})([^.]|$)|(\.{3})')
 
 
 def lower(raw: str) -> str:
@@ -33,7 +32,7 @@ def count_character(characters):
     :param characters: The characters to be counted in the raw text.
     :return: Character count in raw text
     """
-    return lambda raw, tokenized: (raw, [character in characters for character in tokenized].count(True))
+    return lambda raw, tokenized: (raw, [character in characters for character in raw].count(True))
 
 
 def count_ellipses(raw, tokenized):
@@ -45,6 +44,23 @@ def count_ellipses(raw, tokenized):
     :return: Ellipsis count
     """
     return raw, len(ellipsis_matcher.findall(raw))
+
+def split_ellipses(raw, processed):
+    """
+    Splits ellipses in processed text.
+
+    :param raw: Raw text
+    :param tokenized: Tokens received from tokenizer
+    :return: Raw text and processed tokens with ellipses split
+    """
+    array = []
+    for elem in processed:
+        if elem.startswith("..."):
+            array.extend(elem.split())
+        else:
+            array.append(elem)
+
+    return raw, array
 
 
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
@@ -69,12 +85,13 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
         vocab = Vocab(max_size=vocab_size)
 
     cleanup = TextCleanUp(remove_punct=remove_punct)
-    ellipsis = RegexReplace(replace_patterns=[(r"\.{2,}", '...')])
+    ellipsis = RegexReplace(replace_patterns=[(r'(\.{2,5})([^.]|$)|(\.{3})', r' ... \2')])
 
     # Fields used in data preprocessing
-    text = Field(name='input_text', numericalizer=vocab, pretokenize_hooks=[lower, cleanup, ellipsis],
+    text = Field(name='input_text', keep_raw=True, numericalizer=vocab, pretokenize_hooks=[lower, cleanup, ellipsis],
+                 posttokenize_hooks=[] if remove_punct else [split_ellipses],
                  tokenizer=TweetTokenizer(preserve_case=False, reduce_len=False,
-                                          strip_handles=False if not remove_punct else True).tokenize)
+                                          strip_handles=False if not remove_punct else True, ).tokenize)
     label = LabelField(name='target', is_target=True)
 
     fields = {text_name: text, label_name: label}
