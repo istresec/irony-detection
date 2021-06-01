@@ -102,6 +102,15 @@ if __name__ == '__main__':
           .format(loss / len(test_dataloader), acc / len(test_dataloader) / conf.batch_size * 100, f1 * 100))
     logger(log_path_test, acc_percentage, f1, precision, recall)
 
+    # Testing the best model on validation
+    loss, acc, conf_matrix = evaluate(model, valid_dataloader, device, criterion, num_labels=2,
+                                      features=conf.use_features)
+    acc_percentage = acc / len(valid_dataloader) / conf.batch_size
+    precision, recall, f1 = calculate_statistics(conf_matrix)
+    print("[Valid Stats - Best model]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
+          .format(loss / len(valid_dataloader), acc / len(valid_dataloader) / conf.batch_size * 100, f1 * 100))
+    logger(log_path_valid, acc_percentage, f1, precision, recall)
+
     # Testing the model
     model = torch.load(path / "model.pth")
     model.to(device)
