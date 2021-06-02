@@ -21,7 +21,7 @@ class RNNClassifier(nn.Module):
             batch_first=True
         )
         self.decoder = nn.Sequential(
-            nn.Linear(2*hidden_dim+features_dim, hidden_dim),
+            nn.Linear(hidden_dim+features_dim, hidden_dim),
             nn.Tanh(),
             nn.Linear(hidden_dim, num_labels)
         )
@@ -35,7 +35,7 @@ class RNNClassifier(nn.Module):
 
         packed_e = pack_padded_sequence(e, lengths, batch_first=True, enforce_sorted=False)
         outputs, (hidden, cell) = self.encoder(packed_e)
-        hidden = torch.cat((hidden[-2, :, :], hidden[-1, :, :]), dim=1)
+        hidden = hidden[-1, :, :]
         if self.features:
             inputs = torch.cat((hidden, features), dim=1)
         else:

@@ -3,8 +3,8 @@ from datetime import datetime
 
 # Model config
 glove_dim = 300
-hidden_dim = 300
-num_layers = 5
+hidden_dim = 50
+num_layers = 2
 dropout = 0.2
 model_constructor = lambda e, f, g: RNNClassifier(e, embed_dim=glove_dim, hidden_dim=hidden_dim,
                                                num_layers=num_layers, dropout=dropout, max_len=f, features_dim=g)
@@ -24,8 +24,8 @@ test_type = 'test'
 test_emojis = True
 test_irony_hashtags = True
 
-remove_punctuation = False
-use_features = True
+remove_punctuation = True
+use_features = False
 
 # Save configuration
 now = datetime.now()
