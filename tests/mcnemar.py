@@ -28,9 +28,13 @@ def evaluate_two_models(first_model, second_model, data_first, data_second, devi
     return table
 
 
-def make_tests(table, exact, correction):
+def make_tests(table, exact, correction, alpha=0.05):
     stats = mcnemar(table=table, exact=exact, correction=correction)
     print(stats)
+    if stats.pvalue < alpha:
+        print("P-value is less than alpha. Different proportions of error. H0 is rejected.")
+    else:
+        print("P-value is greater than alpha. Same proportions of error. H0 is not rejected.")
 
 
 
