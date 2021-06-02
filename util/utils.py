@@ -1,6 +1,4 @@
-import sys
-
-from util.dataloader import load_train_data, load_test_data, load_imdb
+from util.dataloader import load_train_data, load_test_data
 from pipeline.preprocessing import preprocess_and_tokenize
 from podium.vocab import PAD
 from pathlib import Path
@@ -75,12 +73,17 @@ def load_and_preprocess(config, padding=False):
 
 
 def update_stats(accuracy, confusion_matrix, logits, y):
-    _, max_ind = torch.max(logits, 1)
+    max_ind = get_predictions(logits)
     equal = torch.eq(max_ind, y)
     correct = int(torch.sum(equal))
     for i, j in zip(y, max_ind):
         confusion_matrix[int(i), int(j)] += 1
     return accuracy + correct, confusion_matrix
+
+
+def get_predictions(logits):
+    _, max_ind = torch.max(logits, 1)
+    return max_ind
 
 
 def logger(path, accuracy, f1, precision, recall):
@@ -138,7 +141,7 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
 
         # Evaluate validation
         loss_v, acc_v, conf_mat_v = evaluate(model, data_valid, device, criterion, num_labels=num_labels,
-                                             features=features, batch_size=batch_size)
+                                             features=features)
         prec_v, recall_v, f1_v = calculate_statistics(conf_mat_v)
         print("[Valid Stats]: loss = {:.3f}, acc = {:.3f}%, f1 = {:.3f}%"
               .format(loss_v / len(data_valid), acc_v / len(data_valid) / batch_size * 100, f1_v * 100))
@@ -156,9 +159,10 @@ def train(model, data, data_valid, optimizer, criterion, device, path, num_label
                 break
 
 
-def evaluate(model, data, device, criterion, num_labels=2, features=False, batch_size=32):
+def evaluate(model, data, device, criterion, num_labels=2, features=False, return_predictions=False):
     model.eval()
     loss, accuracy, confusion_matrix = 0, 0, np.zeros((num_labels, num_labels), dtype=int)
+    predictions = []
     with torch.no_grad():
         for batch_idx, batch in tqdm.tqdm(enumerate(data), total=len(data)):
             if not features:
@@ -177,7 +181,13 @@ def evaluate(model, data, device, criterion, num_labels=2, features=False, batch
                 logits = model(x, lens, f)
             loss += criterion(logits, y).item()
             accuracy, confusion_matrix = update_stats(accuracy, confusion_matrix, logits, y)
-    return loss, accuracy, confusion_matrix
+            if return_predictions:
+                batch_predictions = get_predictions(logits)
+                predictions.extend(batch_predictions.detach().cpu().numpy())
+    if return_predictions:
+        return loss, accuracy, confusion_matrix, predictions
+    else:
+        return loss, accuracy, confusion_matrix
 
 
 def get_lengths(x):
@@ -211,6 +221,7 @@ def clean_zero_values(x, y, lengths, batch_size):
 # test
 if __name__ == '__main__':
     # Get configs
+    """
     conf_path = Path("../configs/no_model_default.py")
     spec = importlib.util.spec_from_file_location('module', conf_path)
     conf = importlib.util.module_from_spec(spec)
@@ -227,3 +238,8 @@ if __name__ == '__main__':
     print(f"Shapes | x: {x.shape}, y: {y.shape}")
     print(f"Shapes | x_v: {x_v.shape}, y_v: {y_v.shape}")
     print(f"Shapes | x_t: {x_t.shape}, y_t: {y_t.shape}")
+    """
+    y = [0, 1, 0, 1]
+    batch = torch.tensor([1, 0, 1, 0, 1])
+    y.extend(batch.numpy())
+    print(y)
