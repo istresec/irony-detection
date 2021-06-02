@@ -29,3 +29,10 @@ use_features = True
 now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 save_path = f"../saves/basic_nn_{dt_string}/"
+
+# Test configuration
+path_first_model = "../saves/probni/b.pth"     # path to model with punctuation
+path_second_model = "../saves/probni/a.pth"    # path to model with no punctuation or with features
+test_mode = "punctuation"  # can be punctuation or features
+exact = False
+correction = True
