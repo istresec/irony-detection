@@ -46,9 +46,11 @@ dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 save_path = f"../saves/cnn_lstm_{dt_string}/"
 
 # Test configuration
-path_first_model = "../saves/probni/b.pth"     # path to model with punctuation
-path_second_model = "../saves/probni/a.pth"    # path to model with no punctuation or with features
-test_mode = "punctuation"  # can be punctuation or features
-exact = True
+path_punctuation = "../saves/final_lstm_rnn/punct.pth"     # path to model with punctuation
+path_no_punctuation = "../saves/final_lstm_rnn/no_punct.pth"    # path to model with no punctuation
+path_punctuation_features = "../saves/final_lstm_rnn/punct_features.pth"     # path to model with punctuation and feat
+#test_mode = "punctuation"  # can be punctuation or features
+test_mode = "features"  # can be punctuation or features
+exact = False
 correction = True
 
