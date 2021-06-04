@@ -9,17 +9,21 @@ from benchmark_system.example import parse_dataset, featurize
 from models.basic_model import BasicModel
 from util.utils import load_and_preprocess
 
+import numpy as np
 
-def get_embedding_format(x, vocab, glove):
-    embeddings = glove.load_vocab(vocab)
-    x = embeddings[x[:]]
-    x = x.reshape((x.shape[0], x.shape[1] * x.shape[2]))
 
+def get_embedding_format(x, embeddings):
+    x = [embeddings[entry] if len(entry) > 0 else embeddings[[0]] for entry in x]
+    x = np.array([np.mean(entry, axis=0) for entry in x])
     return x
 
 
 # Test SVM with basic model.
 if __name__ == '__main__':
+    # Set seeds for reproducibility
+    seed = 123
+    np.random.seed(seed)
+
     conf_path = Path("..\configs\svm.py")
 
     # Get configs
@@ -28,7 +32,7 @@ if __name__ == '__main__':
     spec.loader.exec_module(conf)
 
     # Initialize GloVe
-    glove = GloVe(dim=50)
+    glove = GloVe(dim=300)
 
     # Initialize model
     model = BasicModel(conf.backbone)
@@ -37,33 +41,81 @@ if __name__ == '__main__':
 
     # Without punctuation
     conf.remove_punctuation = True
-    x, y, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
-    x = get_embedding_format(x, vocab, glove)
-    x_test = get_embedding_format(x_test, vocab, glove)
+    conf.use_features = False
+    x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=False)
+    embeddings = glove.load_vocab(vocab)
+    x = get_embedding_format(x, embeddings)
+    x_val = get_embedding_format(x_val, embeddings)
+    x_test = get_embedding_format(x_test, embeddings)
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
     y_hat = model.predict(x)
+    y_hat_val = model.predict(x_val)
     y_hat_test = model.predict(x_test)
     acc = accuracy_score(y_hat, y.ravel())
+    acc_val = accuracy_score(y_hat_val, y_val.ravel())
     acc_test = accuracy_score(y_hat_test, y_test.ravel())
     print(f"Accuracy on the train set (without punctuation): {acc:.4f}")
+    print(f"Accuracy on the validation set (without punctuation): {acc_val:.4f}")
     print(f"Accuracy on the test set (without punctuation): {acc_test:.4f}")
 
     # With punctuation
     conf.remove_punctuation = False
-    x, y, x_test, y_test, vocab = load_and_preprocess(conf, padding=True)
-    x = get_embedding_format(x, vocab, glove)
-    x_test = get_embedding_format(x_test, vocab, glove)
+    conf.use_features = False
+    x, y, x_val, y_val, x_test, y_test, vocab = load_and_preprocess(conf, padding=False)
+    embeddings = glove.load_vocab(vocab)
+    x = get_embedding_format(x, embeddings)
+    x_val = get_embedding_format(x_val, embeddings)
+    x_test = get_embedding_format(x_test, embeddings)
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
 
     # Train model via embeddings
     model.fit(x, y.ravel())
     y_hat = model.predict(x)
+    y_hat_val = model.predict(x_val)
     y_hat_test = model.predict(x_test)
     acc = accuracy_score(y_hat, y.ravel())
+    acc_val = accuracy_score(y_hat_val, y_val.ravel())
     acc_test = accuracy_score(y_hat_test, y_test.ravel())
     print(f"Accuracy on the train set (with punctuation): {acc:.4f}")
+    print(f"Accuracy on the validation set (with punctuation): {acc_val:.4f}")
     print(f"Accuracy on the test set (with punctuation): {acc_test:.4f}")
+
+    # With punctuation and features
+    conf.remove_punctuation = False
+    conf.use_features = True
+    x, y, x_val, y_val, x_test, y_test, vocab, data, data_v, data_t = load_and_preprocess(conf, padding=False)
+    embeddings = glove.load_vocab(vocab)
+    x = get_embedding_format(x, embeddings)
+    features = np.array([feature for feature in data]).transpose()
+    x = np.concatenate((x, features), axis=1)
+    x_val = get_embedding_format(x_val, embeddings)
+    features_val = np.array([feature for feature in data_v]).transpose()
+    x_val = np.concatenate((x_val, features_val), axis=1)
+    x_test = get_embedding_format(x_test, embeddings)
+    features_test = np.array([feature for feature in data_t]).transpose()
+    x_test = np.concatenate((x_test, features_test), axis=1)
+    y = np.array(y)
+    y_val = np.array(y_val)
+    y_test = np.array(y_test)
+
+    # Train model via embeddings
+    model.fit(x, y.ravel())
+    y_hat = model.predict(x)
+    y_hat_val = model.predict(x_val)
+    y_hat_test = model.predict(x_test)
+    acc = accuracy_score(y_hat, y.ravel())
+    acc_val = accuracy_score(y_hat_val, y_val.ravel())
+    acc_test = accuracy_score(y_hat_test, y_test.ravel())
+    print(f"Accuracy on the train set (with punctuation and features): {acc:.4f}")
+    print(f"Accuracy on the validation set (with punctuation and features): {acc_val:.4f}")
+    print(f"Accuracy on the test set (with punctuation and features): {acc_test:.4f}")
 
     # Benchmark system
     print("\nUsing benchmark:")

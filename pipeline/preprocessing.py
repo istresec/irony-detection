@@ -1,13 +1,18 @@
-from podium import TabularDataset, Dataset, Field, Vocab, LabelField, Iterator
+import re
+
+from podium import TabularDataset, Dataset, Field, Vocab, LabelField
+from podium.preproc import TextCleanUp, RegexReplace
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import TweetTokenizer
 from podium.vocab import PAD
+import string
 
-from pipeline.irony_detection_preprocessor import IronyDetectionPreprocessor
 from util import dataloader
 
 import pandas as pd
 import numpy as np
+
+ellipsis_matcher = re.compile(r'(\.{2,5})([^.]|$)|(\.{3})')
 
 
 def lower(raw: str) -> str:
@@ -20,9 +25,47 @@ def lower(raw: str) -> str:
     return raw.lower()
 
 
+def count_character(characters):
+    """
+    Counts instances of given characters.
+
+    :param characters: The characters to be counted in the raw text.
+    :return: Character count in raw text
+    """
+    return lambda raw, tokenized: (raw, [character in characters for character in raw].count(True))
+
+
+def count_ellipses(raw, tokenized):
+    """
+    Counts ellipses in raw text.
+
+    :param raw: Raw text
+    :param tokenized: Tokens received from tokenizer
+    :return: Ellipsis count
+    """
+    return raw, len(ellipsis_matcher.findall(raw))
+
+def split_ellipses(raw, processed):
+    """
+    Splits ellipses in processed text.
+
+    :param raw: Raw text
+    :param tokenized: Tokens received from tokenizer
+    :return: Raw text and processed tokens with ellipses split
+    """
+    array = []
+    for elem in processed:
+        if elem.startswith("..."):
+            array.extend(elem.split())
+        else:
+            array.append(elem)
+
+    return raw, array
+
+
 def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', label_name: str = 'label',
                             finalize: bool = True, use_vocab=True, vocab_size=10000,
-                            remove_punct: bool = True):
+                            remove_punct: bool = True, use_features=False):
     """
     Preprocesses text data and returns a Podium dataset.
 
@@ -33,6 +76,7 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     :param use_vocab: Determines if a vocabulary is used or not, True by default. Boolean
     :param vocab_size: Determines the max size of the vocabulary, if it is used, 10000 by default. Integer.
     :param remove_punct: Determines if punctuation is removed or not. Boolean.
+    :param use_features: Determines if features are used or not. Boolean.
     :return: A Podium Dataset, preprocessed and tokenized, and a Podium Vocab if it is used.
     """
 
@@ -40,15 +84,29 @@ def preprocess_and_tokenize(dataset: pd.DataFrame, text_name: str = 'text', labe
     if use_vocab:
         vocab = Vocab(max_size=vocab_size)
 
-    cleanup = IronyDetectionPreprocessor(remove_punct=remove_punct)
-    text = Field(name='input_text',
-                 tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True, strip_handles=True).tokenize,
-                 numericalizer=vocab,
-                 keep_raw=False,
-                 pretokenize_hooks=[lower, cleanup],
-                 posttokenize_hooks=[])
+    cleanup = TextCleanUp(remove_punct=remove_punct)
+    ellipsis = RegexReplace(replace_patterns=[(r'(\.{2,5})([^.]|$)|(\.{3})', r' ... \2')])
+
+    # Fields used in data preprocessing
+    text = Field(name='input_text', keep_raw=True, numericalizer=vocab, pretokenize_hooks=[lower, cleanup, ellipsis],
+                 posttokenize_hooks=[] if remove_punct else [split_ellipses],
+                 tokenizer=TweetTokenizer(preserve_case=False, reduce_len=False,
+                                          strip_handles=False if not remove_punct else True, ).tokenize)
     label = LabelField(name='target', is_target=True)
+
     fields = {text_name: text, label_name: label}
+    if not remove_punct:
+        if use_features:
+            # Feature fields
+            dots = Field(name='dots', posttokenize_hooks=[count_character('.')], tokenizer=None)
+            question_marks = Field(name='questions', posttokenize_hooks=[count_character('?')], tokenizer=None)
+            exclamation_marks = Field(name='exclamations', posttokenize_hooks=[count_character('!')], tokenizer=None)
+            ellipses = Field(name='ellipses', posttokenize_hooks=[count_ellipses], tokenizer=None)
+            quotes = Field(name='quotes', posttokenize_hooks=[count_character('"\'')], tokenizer=None)
+            interpunctions = Field(name='interpunctions', posttokenize_hooks=[count_character(string.punctuation)],
+                                   tokenizer=None)
+            fields = {text_name: (text, dots, question_marks, exclamation_marks, ellipses, quotes, interpunctions),
+                      label_name: label}
 
     dataset = TabularDataset.from_pandas(df=dataset, fields=fields)
 
@@ -71,8 +129,10 @@ def tf_idf_vectorization(dataset: Dataset, max_features: int = 15000, remove_pun
     :param vocabulary: vocabulary.
     :return: TF-IDF vectorization of given dataset and constructed vocabulary
     """
+    cleanup = TextCleanUp(remove_punct=remove_punct)
+    ellipsis = RegexReplace(replace_patterns=[(r"\.{2,}", '...')])
     tf_idf_vectorizer = TfidfVectorizer(max_features=max_features, lowercase=True,
-                                        preprocessor=IronyDetectionPreprocessor(remove_punct=remove_punct),
+                                        preprocessor=lambda raw: ellipsis(cleanup(raw)),
                                         tokenizer=TweetTokenizer(preserve_case=False, reduce_len=True,
                                                                  strip_handles=True).tokenize, vocabulary=vocabulary)
 

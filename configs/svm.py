@@ -13,7 +13,7 @@ backbone = LinearSVC(
     class_weight=None,
     verbose=0,
     random_state=None,
-    max_iter=1000
+    max_iter=50000
 )
 
 test_task = 'A'
@@ -22,3 +22,4 @@ test_emojis = True
 test_irony_hashtags = False
 
 remove_punctuation = True
+use_features = True

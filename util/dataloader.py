@@ -1,4 +1,8 @@
 import pandas as pd
+from torch.utils.data import Dataset
+from sklearn.model_selection import train_test_split
+import torch
+import csv
 
 encoding = 'UTF-8'
 train_path = '../datasets/train/SemEval2018-T3-train-task'
@@ -8,7 +12,7 @@ label_header = 'Label'
 test_file_prefix = 'SemEval2018-T3_gold_test_task'
 
 
-def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False):
+def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False, split: bool = False):
     """
     Loads SemEVAL2018 Task 3 training datasets (tweets and labels), depending on specification.
 
@@ -33,11 +37,15 @@ def load_train_data(task: str, emojis: bool = True, irony_hashtags: bool = False
     dataset_path += '_ironyHashtags' if irony_hashtags else ''
     dataset_path += '.txt'
 
-    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding)
+    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding, quoting=csv.QUOTE_NONE)
     df.pop('Tweet index')
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
-    return df
+    if split:
+        df_train, df_valid = train_test_split(df, test_size=0.2)
+        return df_train, df_valid
+    else:
+        return df
 
 
 def load_test_data(task: str, emojis: bool = True):
@@ -57,16 +65,49 @@ def load_test_data(task: str, emojis: bool = True):
     dataset_path += '_emoji' if emojis else ''
     dataset_path += '.txt'
 
-    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding)
+    df = pd.read_csv(dataset_path, delimiter='\t', header=0, encoding=encoding, quoting=csv.QUOTE_NONE)
     df.pop('Tweet index')
     df = df.rename(columns={text_header: 'text', label_header: 'label'})
 
     return df
 
 
+def load_imdb():
+    df = pd.read_csv("../datasets/IMDB Dataset.csv", delimiter=",", encoding="utf-8")
+    df = df.rename(columns={"review": "text", "sentiment": "label"})
+    df_train, df_test = train_test_split(df, test_size=0.5)
+    df_train, df_valid = train_test_split(df_train, test_size=0.2)
+    return df_train, df_valid, df_test
+
+
+class PytorchDataset(Dataset):
+    def __init__(self, x, y):
+        self.x = torch.tensor(x, dtype=torch.long)
+        self.y = torch.tensor(y, dtype=torch.long)
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, item):
+        return self.x[item], self.y[item]
+
+
+class PytorchFeatureDataset(Dataset):
+    def __init__(self, x, f, y):
+        self.x = torch.tensor(x, dtype=torch.long)
+        self.f = torch.tensor(f, dtype=torch.long)
+        self.y = torch.tensor(y, dtype=torch.long)
+
+    def __len__(self):
+        return len(self.x)
+
+    def __getitem__(self, item):
+        return self.x[item], self.f[item], self.y[item]
+
+
 # test
 if __name__ == '__main__':
-    test_task = 'B'
+    test_task = 'A'
     test_emojis = True
     test_irony_hashtags = False
 
