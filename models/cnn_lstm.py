@@ -25,13 +25,19 @@ class CnnRnnClassifier(nn.Module):
 
     def forward(self, x, lengths, features=None):
         e = self.embedding(x)
+
+        # Reshape for 2D convolution
         e = torch.reshape(e, shape=(e.shape[0], 1, e.shape[1], e.shape[2]))  # [B x 1 x L x D]
 
         e = self.conv1(e)
+        e = torch.sigmoid(e)
+
+        # Reshape for 1D convolution
         e = torch.reshape(e, shape=(e.shape[0], e.shape[1], e.shape[2]))
-        e = torch.sigmoid(e)  # relu is better but sigmoid used in the paper "Fracking Sarcasm using Neural Network"
+
         e = self.conv2(e)
-        e = torch.sigmoid(e)  # relu
+        e = torch.sigmoid(e)
+
         e = self.dropout(e)
 
         e = e.transpose(1, 2)

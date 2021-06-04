@@ -4,14 +4,14 @@ from datetime import datetime
 
 # Model config
 glove_dim = 300
-conv1_filters = 32
-conv1_kernel = 5
-conv1_padding = 2
-conv2_filters = 64
+conv1_filters = 512
+conv1_kernel = 3
+conv1_padding = 0
+conv2_filters = 512
 conv2_kernel = 3
 conv2_padding = 1
 dropout_rate = 0.2
-fc_neurons = 128
+fc_neurons = 150
 num_labels = 2
 model_constructor = lambda e, f, g: CnnDnnClassifier(e, embedding_dim=glove_dim, conv1_filters=conv1_filters,
                                                conv2_filters=conv2_filters, dropout_rate=dropout_rate,
