@@ -43,7 +43,7 @@ def check_svm():
 
 if __name__ == '__main__':
     # Define configuration path
-    conf_path = Path("../saves/TAR_models/LSTM_DNN/punct/config(4).py")
+    conf_path = Path("../saves/TAR_models/LSTM_DNN/punct/config.py")
 
     # Get configuaration
     spec = importlib.util.spec_from_file_location('module', conf_path)
