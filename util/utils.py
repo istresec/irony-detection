@@ -56,15 +56,21 @@ def load_and_preprocess(config, padding=False):
     x = np.array(x, dtype=object if not padding else int)
     if y[0] != train_dataset[0].target[1]:
         y = (np.array(y) + 1) % 2
+    else:
+        y = np.array(y)
 
     x_v = np.array([vocab.numericalize(tweet) for tweet in x_v], dtype=object if not padding else int)
     # TODO: fix for error above
     if y_v[0] != valid_dataset[0].target[1]:
         y_v = (np.array(y_v) + 1) % 2
+    else:
+        y_v = np.array(y_v)
 
     x_t = np.array([vocab.numericalize(tweet) for tweet in x_t], dtype=object if not padding else int)
     if y_t[0] != test_dataset[0].target[1]:
         y_t = (np.array(y_t) + 1) % 2
+    else:
+        y_t = np.array(y_t)
 
     ret_data = (x, y, x_v, y_v, x_t, y_t, vocab) if not config.use_features \
         else (x, y, x_v, y_v, x_t, y_t, vocab, data, data_v, data_t)
