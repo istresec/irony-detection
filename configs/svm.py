@@ -1,18 +1,12 @@
-from sklearn.svm import LinearSVC
+from sklearn.svm import SVC
 
 # Default SVM config
-backbone = LinearSVC(
-    penalty='l2',
-    loss='squared_hinge',
-    dual=True,
+backbone = SVC(
+    kernel='rbf',
     tol=0.0001,
     C=1.0,
-    multi_class='ovr',
-    fit_intercept=True,
-    intercept_scaling=1,
-    class_weight=None,
     verbose=0,
-    random_state=None,
+    random_state=8008135,
     max_iter=50000
 )
 

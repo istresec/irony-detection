@@ -3,7 +3,7 @@ import importlib
 from pathlib import Path
 
 from podium.vectorizers import GloVe
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score, matthews_corrcoef
 
 from benchmark_system.example import parse_dataset, featurize
 from models.basic_model import BasicModel
@@ -21,10 +21,11 @@ def get_embedding_format(x, embeddings):
 # Test SVM with basic model.
 if __name__ == '__main__':
     # Set seeds for reproducibility
-    seed = 123
+    seed = 8008135
     np.random.seed(seed)
 
     conf_path = Path("..\configs\svm.py")
+    save_path = '../saves/svm/'
 
     # Get configs
     spec = importlib.util.spec_from_file_location('module', conf_path)
@@ -56,12 +57,24 @@ if __name__ == '__main__':
     y_hat = model.predict(x)
     y_hat_val = model.predict(x_val)
     y_hat_test = model.predict(x_test)
-    acc = accuracy_score(y_hat, y.ravel())
-    acc_val = accuracy_score(y_hat_val, y_val.ravel())
-    acc_test = accuracy_score(y_hat_test, y_test.ravel())
-    print(f"Accuracy on the train set (without punctuation): {acc:.4f}")
-    print(f"Accuracy on the validation set (without punctuation): {acc_val:.4f}")
-    print(f"Accuracy on the test set (without punctuation): {acc_test:.4f}")
+    f1 = f1_score(y, y_hat)
+    f1_val = f1_score(y_val, y_hat_val)
+    prec_test = precision_score(y_test, y_hat_test)
+    recall_test = recall_score(y_test, y_hat_test)
+    accuracy_test = accuracy_score(y_test, y_hat_test)
+    matthew_test = matthews_corrcoef(y_test, y_hat_test)
+    f1_test = f1_score(y_test, y_hat_test)
+    print(f"F1 on the train set (without punctuation): {f1:.4f}")
+    print(f"F1 on the validation set (without punctuation): {f1_val:.4f}")
+    print("--------------------------------------------------")
+    print(f"F1 on the test set (without punctuation): {f1_test:.4f}")
+    print(f"Acc. on the test set (without punctuation): {accuracy_test:.4f}")
+    print(f"Prec. on the test set (without punctuation): {prec_test:.4f}")
+    print(f"Rec. on the test set (without punctuation): {recall_test:.4f}")
+    print(f"Matthew corr. on the test set (without punctuation): {matthew_test:.4f}\n")
+    with open(save_path + 'no_punct.txt', 'w') as f:
+        for test in y_hat_test:
+            f.write(str(test) + '\n')
 
     # With punctuation
     conf.remove_punctuation = False
@@ -80,12 +93,24 @@ if __name__ == '__main__':
     y_hat = model.predict(x)
     y_hat_val = model.predict(x_val)
     y_hat_test = model.predict(x_test)
-    acc = accuracy_score(y_hat, y.ravel())
-    acc_val = accuracy_score(y_hat_val, y_val.ravel())
-    acc_test = accuracy_score(y_hat_test, y_test.ravel())
-    print(f"Accuracy on the train set (with punctuation): {acc:.4f}")
-    print(f"Accuracy on the validation set (with punctuation): {acc_val:.4f}")
-    print(f"Accuracy on the test set (with punctuation): {acc_test:.4f}")
+    f1 = f1_score(y, y_hat)
+    f1_val = f1_score(y_val, y_hat_val)
+    prec_test = precision_score(y_test, y_hat_test)
+    recall_test = recall_score(y_test, y_hat_test)
+    accuracy_test = accuracy_score(y_test, y_hat_test)
+    matthew_test = matthews_corrcoef(y_test, y_hat_test)
+    f1_test = f1_score(y_test, y_hat_test)
+    print(f"F1 on the train set (with punctuation): {f1:.4f}")
+    print(f"F1 on the validation set (with punctuation): {f1_val:.4f}")
+    print("--------------------------------------------------")
+    print(f"F1 on the test set (with punctuation): {f1_test:.4f}")
+    print(f"Acc. on the test set (with punctuation): {accuracy_test:.4f}")
+    print(f"Prec. on the test set (with punctuation): {prec_test:.4f}")
+    print(f"Rec. on the test set (with punctuation): {recall_test:.4f}")
+    print(f"Matthew corr. on the test set (with punctuation): {matthew_test:.4f}\n")
+    with open(save_path + 'punct.txt', 'w') as f:
+        for test in y_hat_test:
+            f.write(str(test) + '\n')
 
     # With punctuation and features
     conf.remove_punctuation = False
@@ -110,12 +135,24 @@ if __name__ == '__main__':
     y_hat = model.predict(x)
     y_hat_val = model.predict(x_val)
     y_hat_test = model.predict(x_test)
-    acc = accuracy_score(y_hat, y.ravel())
-    acc_val = accuracy_score(y_hat_val, y_val.ravel())
-    acc_test = accuracy_score(y_hat_test, y_test.ravel())
-    print(f"Accuracy on the train set (with punctuation and features): {acc:.4f}")
-    print(f"Accuracy on the validation set (with punctuation and features): {acc_val:.4f}")
-    print(f"Accuracy on the test set (with punctuation and features): {acc_test:.4f}")
+    f1 = f1_score(y, y_hat)
+    f1_val = f1_score(y_val, y_hat_val)
+    prec_test = precision_score(y_test, y_hat_test)
+    recall_test = recall_score(y_test, y_hat_test)
+    accuracy_test = accuracy_score(y_test, y_hat_test)
+    matthew_test = matthews_corrcoef(y_test, y_hat_test)
+    f1_test = f1_score(y_test, y_hat_test)
+    print(f"F1 on the train set (with punctuation and features): {f1:.4f}")
+    print(f"F1 on the validation set (with punctuation and features): {f1_val:.4f}")
+    print("--------------------------------------------------")
+    print(f"F1 on the test set (with punctuation and features): {f1_test:.4f}")
+    print(f"Acc. on the test set (with punctuation and features): {accuracy_test:.4f}")
+    print(f"Prec. on the test set (with punctuation and features): {prec_test:.4f}")
+    print(f"Rec. on the test set (with punctuation and features): {recall_test:.4f}")
+    print(f"Matthew corr. on the test set (with punctuation and features): {matthew_test:.4f}\n")
+    with open(save_path + 'punct_w_features.txt', 'w') as f:
+        for test in y_hat_test:
+            f.write(str(test) + '\n')
 
     # Benchmark system
     print("\nUsing benchmark:")
