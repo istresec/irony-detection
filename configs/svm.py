@@ -6,7 +6,7 @@ backbone = SVC(
     tol=0.0001,
     C=1.0,
     verbose=0,
-    random_state=None,
+    random_state=8008135,
     max_iter=50000
 )
 
