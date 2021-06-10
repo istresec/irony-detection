@@ -4,6 +4,7 @@ from podium.vocab import PAD
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import importlib
 import torch
 import tqdm
@@ -76,6 +77,42 @@ def load_and_preprocess(config, padding=False):
         else (x, y, x_v, y_v, x_t, y_t, vocab, data, data_v, data_t)
 
     return ret_data
+
+
+def load_preprocess_one_example(config, example, device):
+    """
+    Loads and preprocesses the train and test dataset based on given configuration.
+
+    :param config: Configuration containing all necessary function arguments.
+    :return: The training data and labels x and y, the test data and labels x_test and y_test, and the vocab.
+    """
+    train_data, valid_data = load_train_data(config.test_task, emojis=config.test_emojis,
+                                             irony_hashtags=config.test_irony_hashtags, split=True)
+
+    train_dataset, vocab = preprocess_and_tokenize(train_data, remove_punct=True,
+                                                   use_features=False)
+    train_dataset, vocab2 = preprocess_and_tokenize(train_data, remove_punct=False,
+                                                   use_features=False)
+    df_example = pd.DataFrame(data={"text": [example], "label": [0]})
+
+    dataset_no_punct = preprocess_and_tokenize(df_example, use_vocab=False, remove_punct=True, use_features=False)
+    dataset_punct = preprocess_and_tokenize(df_example, use_vocab=False, remove_punct=False, use_features=False)
+    dataset_punct_f = preprocess_and_tokenize(df_example, use_vocab=False, remove_punct=False, use_features=True)
+
+    data_np = dataset_no_punct.batch()
+    x_np, y_np = data_np.pop('input_text'), data_np.pop('target')
+
+    data_p = dataset_punct.batch()
+    x_p, y_p = data_p.pop('input_text'), data_p.pop('target')
+
+    data_pf = dataset_punct_f.batch()
+    x_pf, y_pf = data_pf.pop('input_text'), data_pf.pop('target')
+
+    x_np = torch.tensor(np.array([vocab.numericalize(tweet) for tweet in x_np], dtype=int), dtype=torch.long).to(device)
+    x_p = torch.tensor(np.array([vocab2.numericalize(tweet) for tweet in x_p], dtype=int), dtype=torch.long).to(device)
+    x_pf = torch.tensor(np.array([vocab2.numericalize(tweet) for tweet in x_pf], dtype=int), dtype=torch.long).to(device)
+
+    return x_np, x_p, x_pf, data_pf
 
 
 def update_stats(accuracy, confusion_matrix, logits, y):
